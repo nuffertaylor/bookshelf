@@ -4,7 +4,9 @@ from random import random, choice
 
 class Bookshelf:
   def __init__(self, bookshelfImageDir, shelfWidthInches, shelfWidthPixels, shelfBottoms, shelfLeft):
-    self.shelfBackground = Image.open(bookshelfImageDir)
+    self.shelves = []
+    self.bookshelfImageDir = bookshelfImageDir
+    self.curShelf = Image.open(bookshelfImageDir)
     self.inchPixelRatio = shelfWidthPixels / shelfWidthInches
     self.shelfLength = shelfWidthPixels
     self.shelfBottoms = shelfBottoms #because shelves can have variable height, the array shelfBottoms tells us the number of shelves and their respective height in pixels
@@ -76,14 +78,19 @@ class Bookshelf:
       if(bookRight > self.shelfLength): #move to next row
         self.bookLeft = self.shelfLeft
         bookRight = self.bookLeft + w
-        self.shelfBottomIndex += 1
+        if(self.shelfBottomIndex + 1 < len(self.shelfBottoms)):
+          self.shelfBottomIndex += 1
+        else: #move to next bookshelf
+          self.shelfBottomIndex = 0
+          self.shelves.append(self.curShelf)
+          self.curShelf = Image.open(self.bookshelfImageDir)
 
       bookTop = self.shelfBottoms[self.shelfBottomIndex] - h
 
       if(f["fileDir"]): #use provided file
         spine = Image.open(f["fileDir"])
         spine = spine.resize((w, h))
-        self.shelfBackground.paste(spine, (self.bookLeft, bookTop))
+        self.curShelf.paste(spine, (self.bookLeft, bookTop))
 
       else: #draw our own cover rectangle
         newBook = Image.new("RGB", (h, w), getRandColor(.7))
@@ -98,24 +105,37 @@ class Bookshelf:
         
         imDraw.text((15, 0), f["title"], (255,255,255), font=randFont)
         newBook = newBook.rotate(270, expand=True)
-        self.shelfBackground.paste(newBook, (self.bookLeft, bookTop))
+        self.curShelf.paste(newBook, (self.bookLeft, bookTop))
 
       self.bookLeft = bookRight
 
+  def getFullShelf(self):
+    if(len(self.shelves) > 0):
+      self.shelves.append(self.curShelf)
+      prevShelf = self.shelves[0]
+      for i in range(1, len(self.shelves)):
+        nextShelf = self.shelves[i]
+        tempImage = Image.new('RGB', (prevShelf.width + nextShelf.width, prevShelf.height))
+        tempImage.paste(prevShelf, (0,0))
+        tempImage.paste(nextShelf, (prevShelf.width, 0))
+        prevShelf = tempImage
+      return prevShelf
+
+    else:
+      return self.curShelf
+    
   def showShelf(self):
-    self.shelfBackground.show()
+    self.getFullShelf().show()
 
   def saveShelf(self, saveLocation):
-    self.shelfBackground.save(saveLocation)
-
+    self.getFullShelf().save(saveLocation)
 
 def example():
-  bookshelf = Bookshelf("example/bookshelf1.jpg", 35.5, 1688, [676, 1328], 75)
+  bookshelf = Bookshelf("example/bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
   exampleBooks = [
     {"title" : "Slaughterhouse-Five", "fileDir" : "example/slaughterhouse_five-9780812988529.jpg", "dimensions" : "5.3 x 0.6 x 8"},
     {"title" : "Alice Knott", "fileDir" : "example/alice_knott-9780525535218.jpg", "dimensions" : "6.15x1.08x9.26"},
     {"title" : "Dark Matter", "fileDir" : "example/dark_matter-9781101904220.jpg", "dimensions" : "6.35x1.2x9.5"},
-    {"title" : "Unnamed Book", "fileDir": "", "dimensions" : ""}
   ]
   repeatNTimes = 1
   for i in range(repeatNTimes):
