@@ -1,12 +1,18 @@
 from PIL import Image, ImageDraw, ImageFont
+from ImageOpener.PILImageOpener import PILImageOpener
+from ImageOpener.S3ImageOpener import S3ImageOpener
 from randCol import getRandColor
 from random import random, choice
+import feedparser
+import copy
+from dynamodb_dao import getBookBatch, getBook
 
 class Bookshelf:
-  def __init__(self, bookshelfImageDir, shelfWidthInches, shelfWidthPixels, shelfBottoms, shelfLeft):
+  def __init__(self, imageOpener, bookshelfFileName, shelfWidthInches, shelfWidthPixels, shelfBottoms, shelfLeft):
+    self.imageOpener = imageOpener
     self.shelves = []
-    self.bookshelfImageDir = bookshelfImageDir
-    self.curShelf = Image.open(bookshelfImageDir)
+    self.bookshelfImage = imageOpener.open(bookshelfFileName) #bookshelfImage MUST be a python pillow Image object
+    self.curShelf = copy.deepcopy(self.bookshelfImage)
     self.inchPixelRatio = shelfWidthPixels / shelfWidthInches
     self.shelfLength = shelfWidthPixels
     self.shelfBottoms = shelfBottoms #because shelves can have variable height, the array shelfBottoms tells us the number of shelves and their respective height in pixels
@@ -64,7 +70,7 @@ class Bookshelf:
   def convertInchesToPixels(self, inches):
     return int(inches * self.inchPixelRatio) #at some point, i'll make this a class, and each class can be instantiated with different bookshelf types. These types will have different pixel to inch ratios. but for now this is fine. my only image is a 1/20 ratio
 
-  def fillBookshelf(self, bookList):
+  def fillShelf(self, bookList):
     for f in bookList:
       h,w,l = 0,0,0
       if(f["dimensions"]):
@@ -83,12 +89,12 @@ class Bookshelf:
         else: #move to next bookshelf
           self.shelfBottomIndex = 0
           self.shelves.append(self.curShelf)
-          self.curShelf = Image.open(self.bookshelfImageDir)
+          self.curShelf = copy.deepcopy(self.bookshelfImage)
 
       bookTop = self.shelfBottoms[self.shelfBottomIndex] - h
 
-      if(f["fileDir"]): #use provided file
-        spine = Image.open(f["fileDir"])
+      if(f["fileName"]): #use provided file
+        spine = self.imageOpener.open(f["fileName"])
         spine = spine.resize((w, h))
         self.curShelf.paste(spine, (self.bookLeft, bookTop))
 
@@ -131,16 +137,46 @@ class Bookshelf:
     self.getFullShelf().save(saveLocation)
 
 def example():
-  bookshelf = Bookshelf("example/bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
+  bookshelf = Bookshelf(PILImageOpener, "example/bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
   exampleBooks = [
-    {"title" : "Slaughterhouse-Five", "fileDir" : "example/slaughterhouse_five-9780812988529.jpg", "dimensions" : "5.3 x 0.6 x 8"},
-    {"title" : "Alice Knott", "fileDir" : "example/alice_knott-9780525535218.jpg", "dimensions" : "6.15x1.08x9.26"},
-    {"title" : "Dark Matter", "fileDir" : "example/dark_matter-9781101904220.jpg", "dimensions" : "6.35x1.2x9.5"},
+    {"title" : "Slaughterhouse-Five", "fileName" : "example/slaughterhouse_five-9780812988529.jpg", "dimensions" : "5.3 x 0.6 x 8"},
+    {"title" : "Alice Knott", "fileName" : "example/alice_knott-9780525535218.jpg", "dimensions" : "6.15x1.08x9.26"},
+    {"title" : "Dark Matter", "fileName" : "example/dark_matter-9781101904220.jpg", "dimensions" : "6.35x1.2x9.5"},
   ]
   repeatNTimes = 1
   for i in range(repeatNTimes):
-    bookshelf.fillBookshelf(exampleBooks)
+    bookshelf.fillShelf(exampleBooks)
   bookshelf.showShelf()
   bookshelf.saveShelf("exampleShelf.png")
 
-example()
+def exampleAWS():
+  bookshelf = Bookshelf(S3ImageOpener, "bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
+  exampleBooks = [
+    {"title" : "Slaughterhouse-Five", "fileName" : "slaughterhouse_five-9780440180296.png", "dimensions" : "5.3 x 0.6 x 8"},
+    {"title" : "Alice Knott", "fileName" : "alice_knott-9780525535218.png", "dimensions" : "6.15x1.08x9.26"},
+    {"title" : "Dark Matter", "fileName" : "dark_matter-9781101904220.png", "dimensions" : "6.35x1.2x9.5"},
+  ]
+  bookshelf.fillShelf(exampleBooks)
+  bookshelf.showShelf()
+  bookshelf.saveShelf("exampleShelf.png")
+
+# example()
+
+def get_books_from_shelf(userid, shelfname):
+    rss_url = "https://www.goodreads.com/review/list_rss/" + userid + "?shelf=" + shelfname
+    parsed_rss = feedparser.parse(rss_url)
+    books = []
+    for entry in parsed_rss["entries"]:
+      book = {"book_id" : entry["book_id"], "title" : entry["title"]}
+      books.append(book)
+    return books
+
+def buildBookshelfFromGoodreadsShelf(userid, shelfname):
+  book_ids = get_books_from_shelf(userid, shelfname)
+  batch = getBookBatch(book_ids)
+  bookshelf = Bookshelf(S3ImageOpener, "bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
+  bookshelf.fillShelf(batch)
+  bookshelf.showShelf()
+
+#example building bookshelf
+buildBookshelfFromGoodreadsShelf("24821860", "read")
