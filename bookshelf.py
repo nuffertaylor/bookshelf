@@ -6,12 +6,14 @@ from random import random, choice
 import feedparser
 import copy
 from dynamodb_dao import getBookBatch, getBook
+import math
+import colorsys
 
 class Bookshelf:
   def __init__(self, imageOpener, bookshelfFileName, shelfWidthInches, shelfWidthPixels, shelfBottoms, shelfLeft):
     self.imageOpener = imageOpener
     self.shelves = []
-    self.bookshelfImage = imageOpener.open(bookshelfFileName) #bookshelfImage MUST be a python pillow Image object
+    self.bookshelfImage = imageOpener.open(bookshelfFileName) 
     self.curShelf = copy.deepcopy(self.bookshelfImage)
     self.inchPixelRatio = shelfWidthPixels / shelfWidthInches
     self.shelfLength = shelfWidthPixels
@@ -19,21 +21,15 @@ class Bookshelf:
     self.shelfBottomIndex = 0
     self.shelfLeft = shelfLeft #constant, representing left edge of shelf
     self.bookLeft = shelfLeft #represents the left edge of the next book to be placed
+    self.bookList = []
 
   #dimension must be delimited with x.
   def getBookHeightWidthLength(self, dimension):
-    dimension = dimension.lower()
-    dimension = dimension.replace(" ", "")
-    ds = dimension.split('x')
+    ds = [(float(s)) for s in (dimension.replace(" ", "").split('x'))]
     #longest dimension is book height
-    h = ds[0]
-    for d in ds: 
-      if(d > h): h = d
-
+    h = max(ds)
     #shortest is book width
-    w = ds[0]
-    for d in ds: 
-      if(d < w): w = d
+    w = min(ds)
     #middle is book length
     l = None
     for d in ds:
@@ -71,6 +67,7 @@ class Bookshelf:
     return int(inches * self.inchPixelRatio) #at some point, i'll make this a class, and each class can be instantiated with different bookshelf types. These types will have different pixel to inch ratios. but for now this is fine. my only image is a 1/20 ratio
 
   def fillShelf(self, bookList):
+    self.bookList = self.bookList + bookList
     for f in bookList:
       h,w,l = 0,0,0
       if(f["dimensions"]):
@@ -114,6 +111,15 @@ class Bookshelf:
         self.curShelf.paste(newBook, (self.bookLeft, bookTop))
 
       self.bookLeft = bookRight
+    
+  def reorderShelf(self, sortMethod):
+    orderedList = sortMethod(self.bookList)
+    self.bookList = []
+    self.shelves = []
+    self.curShelf = copy.deepcopy(self.bookshelfImage)
+    self.shelfBottomIndex = 0
+    self.bookLeft = self.shelfLeft
+    self.fillShelf(orderedList)
 
   def getFullShelf(self):
     if(len(self.shelves) > 0):
@@ -135,6 +141,84 @@ class Bookshelf:
 
   def saveShelf(self, saveLocation):
     self.getFullShelf().save(saveLocation)
+
+
+def get_books_from_shelf(userid, shelfname):
+    rss_url = "https://www.goodreads.com/review/list_rss/" + userid + "?shelf=" + shelfname
+    parsed_rss = feedparser.parse(rss_url)
+    books = []
+    for entry in parsed_rss["entries"]:
+      book = {"book_id" : entry["book_id"], "title" : entry["title"]}
+      books.append(book)
+    return books
+
+def orderBooksByShelfOrder(books, batch):
+  res = []
+  batchCopy = copy.deepcopy(batch)
+  for book in books:
+    for e in batchCopy:
+      found = None
+      if book["book_id"] == e["book_id"]:
+        found = e
+        break
+    if(found == None):
+      print("didn't find " + book["title"])
+    else:
+      batchCopy.remove(found)
+      res.append(found)
+  return res
+
+def colorStep (r,g,b, repetitions=1):
+  #https://www.alanzucconi.com/2015/09/30/colour-sorting/
+  lum = math.sqrt( .241 * r + .691 * g + .068 * b )
+  h, s, v = colorsys.rgb_to_hsv(r,g,b)
+  h2 = int(h * repetitions)
+  lum2 = int(lum * repetitions)
+  v2 = int(v * repetitions)
+  if h2 % 2 == 1:
+    v2 = repetitions - v2
+    lum = repetitions - lum
+  return (h2, lum, v2)
+
+def orderBooksByAuthor(batch):
+  pass
+
+def orderBooksByColor(batch):
+  batch.sort(key=lambda b : colorStep(int(b["domColor"][1:3], base=16),int(b["domColor"][3:5], base=16),int(b["domColor"][5:7], base=16),8))
+  return batch
+
+def orderBooksByGenre(batch):
+  pass
+
+def orderBooksByHeight(batch):
+  byHeight = lambda b : max([float(s) for s in (b["dimensions"].replace(" ", "").split('x'))])
+  batch.sort(key=byHeight)
+  return batch
+
+def orderBooksByPubDate(batch):
+  byDate = lambda b : b["pubDate"] if len(b["pubDate"]) > 0 else 3000 #if there's no pubdate, just put it at the end of the list
+  batch.sort(key=byDate)
+  return batch
+
+def orderBooksByTitle(batch):
+  byDate = lambda b : b["title"]
+  batch.sort(key=byDate)
+  return batch
+
+def buildBookshelfFromGoodreadsShelf(userid, shelfname, sortMethod = None):
+  books = get_books_from_shelf(userid, shelfname)
+  batch = getBookBatch(books)
+  sortedBooks = orderBooksByShelfOrder(books, batch)
+  if(sortMethod != None):
+    sortedBooks = sortMethod(sortedBooks)
+  # print(sortedBooks)
+  bookshelf = Bookshelf(S3ImageOpener, "bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
+  bookshelf.fillShelf(sortedBooks)
+  bookshelf.showShelf()
+
+#example building bookshelf
+# buildBookshelfFromGoodreadsShelf("24821860", "read")
+buildBookshelfFromGoodreadsShelf("119763485", "2021", orderBooksByPubDate)
 
 def example():
   bookshelf = Bookshelf(PILImageOpener, "example/bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
@@ -161,22 +245,3 @@ def exampleAWS():
   bookshelf.saveShelf("exampleShelf.png")
 
 # example()
-
-def get_books_from_shelf(userid, shelfname):
-    rss_url = "https://www.goodreads.com/review/list_rss/" + userid + "?shelf=" + shelfname
-    parsed_rss = feedparser.parse(rss_url)
-    books = []
-    for entry in parsed_rss["entries"]:
-      book = {"book_id" : entry["book_id"], "title" : entry["title"]}
-      books.append(book)
-    return books
-
-def buildBookshelfFromGoodreadsShelf(userid, shelfname):
-  book_ids = get_books_from_shelf(userid, shelfname)
-  batch = getBookBatch(book_ids)
-  bookshelf = Bookshelf(S3ImageOpener, "bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
-  bookshelf.fillShelf(batch)
-  bookshelf.showShelf()
-
-#example building bookshelf
-buildBookshelfFromGoodreadsShelf("24821860", "read")
