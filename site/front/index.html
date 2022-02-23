@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="index.css">
+  <script src="index.js"></script>
+
+  <title>Upload Book Spine</title>
+</head>
+<body>
+  
+  <div class="flexrow">
+    <div class="flexitem">
+      <image id="displayImage"></image>
+    </div>
+    <div class="flexitem">
+      <form id="imageForm">
+        <input id="imageInput" type="file" accept="image/*" onchange="encodeImageFileAsURL(this)" required>
+        <input id="title" type="text" placeholder="title" required>
+        <input id="book_id" type="text" placeholder="goodreads id" required>
+        <input id="dimensions" type="text" placeholder='book dimensions ("6 x 1.18 x 9")' required>
+        <input id="pubDate" type="text" placeholder="year published">
+        <input id="authorName" type="text" placeholder="author's name">
+        <input id="genre" type="text" placeholder="genre">
+        <button type="submit" id="uploadButton">Upload</button>
+      </form>
+    </div>
+  </div>
+
+
+</body>
+</html>
