@@ -13,12 +13,13 @@ def split_list(a_list):
   half = len(a_list)//2
   return a_list[:half], a_list[half:]
 
-def putBook(title, book_id, pubDate = None, isbn = None, isbn13 = None, fileName = None, dimensions = None, domColor = None, genre = None):
+def putBook(title, book_id, pubDate = "", author = "", isbn = "", isbn13 = "", fileName = "", dimensions = "", domColor = "", genre = ""):
 
   data = {
       "title" : title,
       "book_id" : book_id,
       "pubDate" : pubDate,
+      "author" : author,
       "isbn" : isbn,
       "isbn13" : isbn13,
       "fileName" : fileName,
