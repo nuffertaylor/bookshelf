@@ -1,6 +1,7 @@
 from base64 import b64decode
 from distutils.log import error
 from dynamodb_dao import putBook
+from io import BytesIO
 from s3_dao import upload_fileobj
 
 def create_filename(title, book_id, extension):
@@ -32,16 +33,8 @@ def verify_required_values(event):
   return True
 
 def pad_b64_str(b64str):
-  numCharToAdd = len(b64str) % 4
-  if(numCharToAdd > 0):
-    a = b64str.split(',')
-    b = a[1]
-    a = a[0]
-    for i in range(numCharToAdd):
-      b = '0' + b
-    return a + b
-  else:
-    return b64str
+  a = b64str.split(',')
+  return a[1]
   
 def lambda_handler(event, context):
   if(not verify_required_values(event)):
@@ -50,10 +43,11 @@ def lambda_handler(event, context):
   extension = get_ext_from_b64(event["image"])
   b64str = pad_b64_str(event["image"])
   decoded = b64decode(b64str)
+  temp_file = BytesIO(decoded)
   file_name = create_filename(event["title"], event["book_id"], extension)
   result = False
 
-  if(upload_fileobj(decoded, object_name=file_name)):
+  if(upload_fileobj(temp_file, object_name=file_name)):
     result= putBook(title=event["title"], 
             book_id=event["book_id"], 
             pubDate=event["pubDate"], 
