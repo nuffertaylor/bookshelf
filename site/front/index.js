@@ -19,6 +19,15 @@ window.onload = ()=> {
   imageForm.addEventListener("submit", async event => {
     event.preventDefault();
 
+    if(!onlyNumbers(book_id.value)) {
+      alert("invalid goodreads book id!");
+      book_id.focus();
+    }
+    if(!validDimensions(dimensions.value)) {
+      alert("invalid dimension input, should be in format 1 x 2 x 3");
+      dimensions.focus();
+    }
+
     var data = {
       title : title.value,
       book_id : book_id.value,
@@ -33,6 +42,8 @@ window.onload = ()=> {
 };
 
 function onlyNumbers(string) { return (string.match(/^[0-9]+$/) != null); }
+
+function validDimensions(string) { return (string.match(/^([0-9]+\.*[0-9]* *[xX]){2}([0-9]+\.*[0-9]*)/) != null); }
 
 function encodeImageFileAsURL(element) {
   var file = element.files[0];
