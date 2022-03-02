@@ -89,16 +89,16 @@ def calcDomRGB(source):
 #     print(res)
 
 def check_digit_13(isbn):
-    assert len(isbn) == 12
-    sum = 0
-    for i in range(len(isbn)):
-        c = int(isbn[i])
-        if i % 2: w = 3
-        else: w = 1
-        sum += w * c
-    r = 10 - (sum % 10)
-    if r == 10: return '0'
-    else: return str(r)
+  assert len(isbn) == 12
+  sum = 0
+  for i in range(len(isbn)):
+    c = int(isbn[i])
+    if i % 2: w = 3
+    else: w = 1
+    sum += w * c
+  r = 10 - (sum % 10)
+  if r == 10: return '0'
+  else: return str(r)
 
 def convertISBNtoISBN13(isbn):
   if(len(isbn) == 13): return isbn
@@ -121,22 +121,24 @@ def findMatchingData(grid, arr):
 def get_books_from_shelf(userid, shelfname):
   rss_url = "https://www.goodreads.com/review/list_rss/" + userid + "?shelf=" + shelfname
   parsed_rss = feedparser.parse(rss_url)
-  # print(parsed_rss["entries"][1].keys())
+  print(parsed_rss["entries"][1].keys())
 
   for i, entry in enumerate(parsed_rss["entries"]):
     title = entry["title"]
     grid = entry["book_id"]
-    pubDate = (entry["book_published"])
+    pubDate = entry["book_published"]
+    author = entry["author_name"]
     isbn = entry["isbn"]
     isbn13 = convertISBNtoISBN13(isbn)
-    addtl = findMatchingData(entry["book_id"], files2022)
-    fileName = removeDirPrefix(addtl["fileDir"])
-    dimensions = addtl["dimensions"]
-    domColor = calcDomRGB(addtl["fileDir"])
+    addtl = findMatchingData(entry["book_id"], files2021)
+    if(addtl):
+      fileName = removeDirPrefix(addtl["fileDir"])
+      dimensions = addtl["dimensions"]
+      domColor = calcDomRGB(addtl["fileDir"])
 
-    #aws functions
-    upload_file(addtl["fileDir"])
-    putBook(title, grid, pubDate, isbn, isbn13, fileName, dimensions, domColor)
+    #   #aws functions
+    #   upload_file(addtl["fileDir"])
+      putBook(title, grid, pubDate, author, isbn, isbn13, fileName, dimensions, domColor)
 
 def getBooksFromShelf(userid, shelfname):
   bookDetails = scrape_books_from_shelf(userid, shelfname)
@@ -157,6 +159,18 @@ def getBooksFromShelf(userid, shelfname):
   return bookDetails
 
 
-# (get_books_from_shelf("119763485", "2022"))
+# (get_books_from_shelf("119763485", "2021"))
 
 # buildBookshelfFromGoodreadsShelf("119763485", "2021")
+
+def create_filename(title, book_id, extension):
+  t = ''.join(ch for ch in title if ch.isalnum())
+  return t + "-" + book_id + "." + extension
+
+def get_ext_from_b64(b64str):
+  a = b64str.split(';')[0]
+  b = a.split('/')[1]
+  return b
+
+# print(create_filename("this is a cool book! #3", "444414", "png"))
+print(get_ext_from_b64("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgEAAAHbCAYAAABSq0m1AAB4f0lEQVR42uydd5hcxZX2u6cn55xzzjnnqJmRZjRCAZRzRjkHUEAIoQQCFJCEkJAEIuckokAgBAvGBAfw+rP3+7xe767D7np3nX2+e+7M2CDNSBOqbt97+z3P8/tj1/aou29VvedWnXqPxYJAIBAIBAKBQCAMG84KfgqRCskKeQqVCs0KXQqTFeYpLFfYpLBT4W6FYwrHFe5RuFNhq8JahSUKcxQmKYxRaFWoUShWyFJIUAjv+Tdd8PMjEAgEAjH8cFKIVqhWmKpwi8IDCs8onFd4T"))
