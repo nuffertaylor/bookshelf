@@ -22,10 +22,12 @@ window.onload = ()=> {
     if(!onlyNumbers(book_id.value)) {
       alert("invalid goodreads book id!");
       book_id.focus();
+      return;
     }
     if(!validDimensions(dimensions.value)) {
       alert("invalid dimension input, should be in format 1 x 2 x 3");
       dimensions.focus();
+      return;
     }
 
     var data = {
@@ -37,13 +39,18 @@ window.onload = ()=> {
       genre : genre.value,
       image : b64Image
     };
-    console.log(JSON.stringify(data));
+    sendRequestToServer(data).then(
+      function(value){
+        if(value) alert("Successfully uploaded " + title.value);
+        else alert("Something went wrong uploading " + title.value);
+      }
+    );
   });
 };
 
 function onlyNumbers(string) { return (string.match(/^[0-9]+$/) != null); }
 
-function validDimensions(string) { return (string.match(/^([0-9]+\.*[0-9]* *[xX]){2}([0-9]+\.*[0-9]*)/) != null); }
+function validDimensions(string) { return (string.match(/^([0-9]+\.*[0-9]* *[xX] *){2}([0-9]+\.*[0-9]*)/) != null); }
 
 function encodeImageFileAsURL(element) {
   var file = element.files[0];
@@ -55,19 +62,21 @@ function encodeImageFileAsURL(element) {
   reader.readAsDataURL(file);
 }
 
-var sendRequestToServer = function(name, data){
+var sendRequestToServer = async function(data){
   var httpPost = new XMLHttpRequest(),
-      path = "http://127.0.0.1:8000/uploadImage/" + name,
+      path = "https://msrjars0ja.execute-api.us-east-1.amazonaws.com/alpha/spine",
       data = JSON.stringify(data);
   httpPost.onreadystatechange = function(err) {
           if (httpPost.readyState == 4 && httpPost.status == 200){
               console.log(httpPost.responseText);
+              return true;
           } else {
               console.log(err);
+              return false;
           }
       };
   // Set the content type of the request to json since that's what's being sent
-  httpPost.setHeader('Content-Type', 'application/json');
   httpPost.open("POST", path, true);
+  httpPost.setRequestHeader('Content-Type', 'application/json');
   httpPost.send(data);
 };
