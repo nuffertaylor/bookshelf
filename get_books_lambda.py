@@ -1,9 +1,5 @@
 import boto3
 from boto3.dynamodb.conditions import Key
-from dynamodb_dao import getBook
-from s3_dao import openS3Image
-from io import BytesIO
-import base64
 
 region = "us-east-1"
 regionEndpoint = "https://dynamodb."+ region + ".amazonaws.com"
@@ -12,17 +8,12 @@ dynamodb = boto3.resource('dynamodb', endpoint_url=regionEndpoint)
 table = dynamodb.Table('bookshelf')
 
 def handler(event, context):
-  book = None
-  if(event["title"] and event["book_id"]):
-    book = (getBook(event))
-  if(book):
-    bytes = openS3Image(book["fileName"]).read()
-    img = base64.b64encode(bytes).decode()
-    book["image"] = img
-    return {"statusCode" : 200, "body" : book}
-  
+  if(event["title"]):
+    return {"statusCode" : 200, "body" : searchByTitle(event["title"])}
+  elif(event["bookid"]):
+    return {"statusCode" : 200, "body" : searchByTitle(event["bookid"])}
   else:
-    return {"statusCode" : 400, "body" : "invalid request"} 
+    return {"statusCode" : 400, "body" : event} 
 
 def get_spine(book_id):
   pass
