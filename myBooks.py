@@ -118,7 +118,7 @@ def findMatchingData(grid, arr):
       return x
   return False
 
-def get_books_from_shelf(userid, shelfname):
+def get_books_from_shelf(userid, shelfname, submitter = ""):
   rss_url = "https://www.goodreads.com/review/list_rss/" + userid + "?shelf=" + shelfname
   parsed_rss = feedparser.parse(rss_url)
   print(parsed_rss["entries"][1].keys())
@@ -130,7 +130,7 @@ def get_books_from_shelf(userid, shelfname):
     author = entry["author_name"]
     isbn = entry["isbn"]
     isbn13 = convertISBNtoISBN13(isbn)
-    addtl = findMatchingData(entry["book_id"], files2021)
+    addtl = findMatchingData(entry["book_id"], files2022)
     if(addtl):
       fileName = removeDirPrefix(addtl["fileDir"])
       dimensions = addtl["dimensions"]
@@ -138,7 +138,7 @@ def get_books_from_shelf(userid, shelfname):
 
     #   #aws functions
     #   upload_file(addtl["fileDir"])
-      putBook(title, grid, pubDate, author, isbn, isbn13, fileName, dimensions, domColor)
+      putBook(title, grid, pubDate, author, isbn, isbn13, fileName, dimensions, domColor, submitter=submitter)
 
 def getBooksFromShelf(userid, shelfname):
   bookDetails = scrape_books_from_shelf(userid, shelfname)
@@ -159,7 +159,7 @@ def getBooksFromShelf(userid, shelfname):
   return bookDetails
 
 
-# (get_books_from_shelf("119763485", "2021"))
+(get_books_from_shelf("119763485", "2022", "jonas"))
 
 # buildBookshelfFromGoodreadsShelf("119763485", "2021")
 
@@ -173,4 +173,4 @@ def get_ext_from_b64(b64str):
   return b
 
 # print(create_filename("this is a cool book! #3", "444414", "png"))
-print(get_ext_from_b64("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgEAAAHbCAYAAABSq0m1AAB4f0lEQVR42uydd5hcxZX2u6cn55xzzjnnqJmRZjRCAZRzRjkHUEAIoQQCFJCEkJAEIuckokAgBAvGBAfw+rP3+7xe767D7np3nX2+e+7M2CDNSBOqbt97+z3P8/tj1/aou29VvedWnXqPxYJAIBAIBAKBQCAMG84KfgqRCskKeQqVCs0KXQqTFeYpLFfYpLBT4W6FYwrHFe5RuFNhq8JahSUKcxQmKYxRaFWoUShWyFJIUAjv+Tdd8PMjEAgEAjH8cFKIVqhWmKpwi8IDCs8onFd4T"))
+# print(get_ext_from_b64("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgEAAAHbCAYAAABSq0m1AAB4f0lEQVR42uydd5hcxZX2u6cn55xzzjnnqJmRZjRCAZRzRjkHUEAIoQQCFJCEkJAEIuckokAgBAvGBAfw+rP3+7xe767D7np3nX2+e+7M2CDNSBOqbt97+z3P8/tj1/aou29VvedWnXqPxYJAIBAIBAKBQCAMG84KfgqRCskKeQqVCs0KXQqTFeYpLFfYpLBT4W6FYwrHFe5RuFNhq8JahSUKcxQmKYxRaFWoUShWyFJIUAjv+Tdd8PMjEAgEAjH8cFKIVqhWmKpwi8IDCs8onFd4T"))

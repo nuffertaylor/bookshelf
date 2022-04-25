@@ -13,7 +13,7 @@ def split_list(a_list):
   half = len(a_list)//2
   return a_list[:half], a_list[half:]
 
-def putBook(title, book_id, pubDate = "", author = "", isbn = "", isbn13 = "", fileName = "", dimensions = "", domColor = "", genre = ""):
+def putBook(title, book_id, pubDate = "", author = "", isbn = "", isbn13 = "", fileName = "", dimensions = "", domColor = "", genre = "", submitter = ""):
 
   data = {
       "title" : title,
@@ -25,7 +25,8 @@ def putBook(title, book_id, pubDate = "", author = "", isbn = "", isbn13 = "", f
       "fileName" : fileName,
       "dimensions" : dimensions,
       "domColor" : domColor,
-      "genre" : genre
+      "genre" : genre,
+      "submitter" : submitter
     }
   print("attempting to put data for " + title + " : " + book_id)
   try:

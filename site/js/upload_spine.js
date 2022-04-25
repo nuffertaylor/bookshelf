@@ -15,7 +15,6 @@ window.onload = ()=> {
   pubDate = document.getElementById("pubDate");
   authorName = document.getElementById("authorName");
   genre = document.getElementById("genre");
-  console.log('gjh');
   imageForm.addEventListener("submit", async event => {
     event.preventDefault();
 
@@ -64,15 +63,12 @@ function encodeImageFileAsURL(element) {
 
 var sendRequestToServer = async function(data){
   var httpPost = new XMLHttpRequest(),
-      path = "https://msrjars0ja.execute-api.us-east-1.amazonaws.com/alpha/spine",
+      path = "https://vi64h2xk34.execute-api.us-east-1.amazonaws.com/alpha/spine",
       data = JSON.stringify(data);
   httpPost.onreadystatechange = function(err) {
-          if (httpPost.readyState == 4 && httpPost.status == 200){
-              console.log(httpPost.responseText);
-              return true;
-          } else {
-              console.log(err);
-              return false;
+          if (httpPost.readyState == 4){
+            if (httpPost.status == 200) return true;
+            else return false;
           }
       };
   // Set the content type of the request to json since that's what's being sent
