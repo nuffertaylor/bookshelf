@@ -77,3 +77,15 @@ async function getLocalIPAddress()
   oReq.open("GET", "https://api.ipify.org?format=jsonp&callback=?");
   oReq.send();
 }
+
+function runget(){
+  var oReq = new XMLHttpRequest();
+  oReq.onreadystatechange = function(err){
+    if (oReq.readyState == 4 && oReq.status == 200){
+      let res = oReq.responseText;
+      console.log(res);
+    }
+  }
+  oReq.open("GET", "https://msrjars0ja.execute-api.us-east-1.amazonaws.com/alpha/spine?title=Silence&book_id=25663542");
+  oReq.send();
+}

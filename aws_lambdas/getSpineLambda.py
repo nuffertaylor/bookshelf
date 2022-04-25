@@ -13,16 +13,20 @@ table = dynamodb.Table('bookshelf')
 
 def handler(event, context):
   book = None
-  if(event["title"] and event["book_id"]):
+  if("title" in event.keys()):
     book = (getBook(event))
+  # elif ("book_id" not in event.keys() and "title" not in event.keys()):
+  else:
+    return {"statusCode": 400, "body": "title required in order to get spine"}
   if(book):
-    bytes = openS3Image(book["fileName"]).read()
-    img = base64.b64encode(bytes).decode()
-    book["image"] = img
+    # bytes = openS3Image(book["fileName"]).read()
+    # img = base64.b64encode(bytes).decode()
+    # book["image"] = img
+    book["url"] = "https://bookshelf-spines.s3.amazonaws.com/" + book["fileName"]
     return {"statusCode" : 200, "body" : book}
   
   else:
-    return {"statusCode" : 400, "body" : "invalid request"} 
+    return {"statusCode" : 400, "body" : "no matching books found"} 
 
 def get_spine(book_id):
   pass
