@@ -57,3 +57,42 @@ def getBook(book):
   res = db_client.get_item(TableName = "bookshelf", Key = {"title" : {"S" : book["title"]}, "book_id" : {"S" : book["book_id"]}})
   ds = {k: deserializer.deserialize(v) for k, v in res.get("Item").items()}
   return ds
+
+def putUser(username, hashedPassword, salt, email, ip, authtoken, expiry):
+  data = {
+      "username" : username,
+      "hashedPassword" : hashedPassword,
+      "salt" : salt,
+      "email" : email,
+      "ip" : ip,
+      "authtoken" : authtoken,
+      "expiry" : expiry
+  }
+  print("attempting to register user " + username + " from ip " + ip) 
+  try:
+    res = table.put_item(Item=data)
+    print("successfuly registered user " + username + " from ip " + ip) 
+    return res
+  except Exception as e:
+    print(e)
+    print("failed to register user " + username + " from ip " + ip) 
+    return False
+    
+def putAuthtoken(username, authtoken, expiry):
+  print("attempting to putAuthtoken for user " + username) 
+  try:
+    res = table.update_item(Key={"username" : username}, UpdateExpression="set authtoken=:a, expiry=:e", ExpressionAttributeValues={":a" : authtoken, ":e" : expiry})
+    print("successfuly putAuthtoken for user " + username) 
+    return res
+  except Exception as e:
+    print(e)
+    print("failed to putAuthtoken for user " + username) 
+    return False
+  
+def getUser(username):
+  res = db_client.get_item(TableName = "bookshelf-users", Key = {"username" : {"S" :username}})
+  if(len(res) > 1):
+    ds = {k: deserializer.deserialize(v) for k, v in res.get("Item").items()}
+    return ds
+  else:
+    return False
