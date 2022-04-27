@@ -1,8 +1,9 @@
 from base64 import b64decode
 from distutils.log import error
-from dynamodb_dao import putBook
+from dynamodb_dao import putBook, getUser
 from io import BytesIO
 from s3_dao import upload_fileobj
+import time
 
 def create_filename(title, book_id, extension):
   t = ''.join(ch for ch in title if ch.isalnum())
@@ -23,13 +24,30 @@ def verify_required_values(event):
     "image",
     "title",
     "book_id",
-    "dimensions"
+    "dimensions",
+    "username",
+    "authtoken"
   ]
 
   for item in required_items:
     if((item not in event.keys()) or (event[item] == None) or (event[item] == "")):
+      global error_message
       error_message = "Did not have the required item '" + item + "'."
       return False
+  return True
+
+def validate_username_authtoken(username, authtoken):
+  global error_message
+  user = getUser(username)
+  if(not user): 
+    error_message = "invalid username"
+    return False
+  if(authtoken != user["authtoken"]):
+    error_message = "invalid authtoken"
+    return False
+  if(int(time.time()) > int(user["expiry"])):
+    error_message = "expired authtoken"
+    return False
   return True
 
 def pad_b64_str(b64str):
@@ -38,7 +56,10 @@ def pad_b64_str(b64str):
   
 def lambda_handler(event, context):
   if(not verify_required_values(event)):
-    return build_return(400, error_message)
+    return build_return(403, error_message)
+    
+  if(not validate_username_authtoken(event["username"], event["authtoken"])):
+    return build_return(403, error_message)
 
   extension = get_ext_from_b64(event["image"])
   b64str = pad_b64_str(event["image"])
