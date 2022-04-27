@@ -29,6 +29,11 @@ window.onload = ()=> {
       return;
     }
 
+    if(!loggedIn()){
+      alert("must be logged in to submit new spine");
+      return;
+    }
+
     var data = {
       title : title.value,
       book_id : book_id.value,
@@ -36,7 +41,9 @@ window.onload = ()=> {
       pubDate : pubDate.value,
       authorName : authorName.value,
       genre : genre.value,
-      image : b64Image
+      image : b64Image,
+      username : getCookie("username"),
+      authtoken : getCookie("authtoken")
     };
     sendRequestToServer(data).then(
       function(value){
@@ -50,6 +57,13 @@ window.onload = ()=> {
 function onlyNumbers(string) { return (string.match(/^[0-9]+$/) != null); }
 
 function validDimensions(string) { return (string.match(/^([0-9]+\.*[0-9]* *[xX] *){2}([0-9]+\.*[0-9]*)/) != null); }
+
+function loggedIn(){
+  let u = getCookie("username");
+  let a = getCookie("authtoken");
+  if(u == null || a == null) return false;
+  return true;
+}
 
 function encodeImageFileAsURL(element) {
   var file = element.files[0];
