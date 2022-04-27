@@ -1,6 +1,7 @@
 var currentState = "login";
 const REGISTER_ALT_TEXT = "Don't have an account? Click here to register.";
 const LOGIN_ALT_TEXT = "Already have an account? Click here to login.";
+const NUM_DAYS_STAY_LOGGEDIN = 7;
 
 function alternateLoginRegister()
 {
@@ -25,7 +26,7 @@ function submitLoginRegister()
   let username = document.getElementById("username").value;
   let password = document.getElementById("password").value;
   let email = document.getElementById("email").value;
-  getLocalIPAddress().then(
+  getLocalIPAddress(
     (ip) => {
       var data = {
         requestType : currentState,
@@ -34,30 +35,35 @@ function submitLoginRegister()
         email : email,
         ip: ip
       };
-      sendRequestToServer(data).then(
-        (res) => {
-          if(res)
-          {
-            console.log(res);
-          }
-          else{
-            //identify what went wrong and tell the user
-          }
-        },
-        (err) => {console.log(err)}
-      );
-    },
-    (err) => (console.log(err))
-  );
+      sendRequestToServer(data);
+  });
 }
 
-async function sendRequestToServer(data){
+function handleResponse(res)
+{
+  console.log(res);
+  res = JSON.parse(res);
+  console.log(res);
+  if(res.statusCode == 200)
+  {
+    alert("Successfully logged in");
+    setCookie("username", res.body.username);
+    setCookie("authtoken", res.body.authtoken);
+  }
+  else
+  {
+    alert(res.body);
+  }
+}
+
+async function sendRequestToServer(data)
+{
   var httpPost = new XMLHttpRequest(),
-      path = "https://msrjars0ja.execute-api.us-east-1.amazonaws.com/alpha/loginregister",
+      path = "https://vi64h2xk34.execute-api.us-east-1.amazonaws.com/alpha/loginregister",
       data = JSON.stringify(data);
-  httpPost.onreadystatechange = function(err) {
-          if (httpPost.readyState == 4 && httpPost.status == 200)
-              return httpPost.responseText;
+  httpPost.onreadystatechange = (err) =>
+  {
+    if (httpPost.readyState == 4) handleResponse(httpPost.responseText);
   };
   // Set the content type of the request to json since that's what's being sent
   httpPost.open("POST", path, true);
@@ -65,22 +71,11 @@ async function sendRequestToServer(data){
   httpPost.send(data);
 };
 
-async function getLocalIPAddress()
+function runget()
 {
   var oReq = new XMLHttpRequest();
-  oReq.onreadystatechange = function(err){
-    if (oReq.readyState == 4 && oReq.status == 200){
-      let res = oReq.responseText.replace('?', '').replace('(','').replace(')','').replace(';','');
-      return (JSON.parse(res)["ip"]);
-    }
-  }
-  oReq.open("GET", "https://api.ipify.org?format=jsonp&callback=?");
-  oReq.send();
-}
-
-function runget(){
-  var oReq = new XMLHttpRequest();
-  oReq.onreadystatechange = function(err){
+  oReq.onreadystatechange = (err) =>
+  {
     if (oReq.readyState == 4 && oReq.status == 200){
       let res = oReq.responseText;
       console.log(res);
