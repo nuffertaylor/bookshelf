@@ -75,7 +75,8 @@ def lambda_handler(event, context):
             author=event["authorName"],
             fileName=file_name,
             dimensions=event["dimensions"],
-            genre=event["genre"]
+            genre=event["genre"],
+            submitter=event["username"]
             )
 
   if(result):
