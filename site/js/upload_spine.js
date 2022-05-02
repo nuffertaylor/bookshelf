@@ -45,12 +45,22 @@ window.onload = ()=> {
       username : getCookie("username"),
       authtoken : getCookie("authtoken")
     };
-    sendRequestToServer(data).then(
-      function(value){
-        if(value) alert("Successfully uploaded " + title.value);
+    sendRequestToServer(data, (value)=>{
+        if(value) 
+        {
+          alert("Successfully uploaded " + title.value);
+          //clear form
+          title.value = "";
+          book_id.value = "";
+          dimensions.value = "";
+          pubDate.value = "";
+          authorName.value = "";
+          genre.value = "";
+          imageInput.value = "";
+          document.getElementById('displayImage').src = "";
+        }
         else alert("Something went wrong uploading " + title.value);
-      }
-    );
+    });
   });
 };
 
@@ -75,14 +85,14 @@ function encodeImageFileAsURL(element) {
   reader.readAsDataURL(file);
 }
 
-var sendRequestToServer = async function(data){
-  var httpPost = new XMLHttpRequest(),
-      path = "https://vi64h2xk34.execute-api.us-east-1.amazonaws.com/alpha/spine",
-      data = JSON.stringify(data);
+function sendRequestToServer(data, callback){
+  var httpPost = new XMLHttpRequest();
+  var path = "https://vi64h2xk34.execute-api.us-east-1.amazonaws.com/alpha/spine";
+  var data = JSON.stringify(data);
   httpPost.onreadystatechange = function(err) {
           if (httpPost.readyState == 4){
-            if (httpPost.status == 200) return true;
-            else return false;
+            if (httpPost.status == 200) callback(true);
+            else callback(false);
           }
       };
   // Set the content type of the request to json since that's what's being sent
