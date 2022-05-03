@@ -54,9 +54,18 @@ def getBookBatch(books):
   
 
 def getBook(book):
-  res = db_client.get_item(TableName = "bookshelf", Key = {"title" : {"S" : book["title"]}, "book_id" : {"S" : book["book_id"]}})
-  ds = {k: deserializer.deserialize(v) for k, v in res.get("Item").items()}
-  return ds
+  if(book["title"] and book["book_id"]):
+    res = db_client.get_item(TableName = "bookshelf", Key = {"title" : {"S" : book["title"]}, "book_id" : {"S" : book["book_id"]}})
+    if(res.get("Item")):
+      ds = {k: deserializer.deserialize(v) for k, v in res.get("Item").items()}
+      return ds
+  #here we either weren't provided a book_id, or couldn't find the requested book_id (maybe a different edition has a spine)
+  res = table.query(KeyConditionExpression = Key("title").eq(book["title"]))
+  if(res["Items"]):
+    # ds = {k: deserializer.deserialize(v) for k, v in res["Items"][0]}
+    # return ds
+    return res["Items"][0] #just return the 0th element
+  return None
 
 def putUser(username, hashedPassword, salt, email, ip, authtoken, expiry):
   data = {
