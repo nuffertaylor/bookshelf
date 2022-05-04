@@ -45,10 +45,12 @@ window.onload = ()=> {
       username : getCookie("username"),
       authtoken : getCookie("authtoken")
     };
-    sendRequestToServer(data, (value)=>{
-        if(value) 
+    sendRequestToServer("spine", data, (value)=>{
+        if(value)
         {
           alert("Successfully uploaded " + title.value);
+          //now send same request to calcDomColor - only we won't wait for a response.
+          sendRequestToServer("calcdomcolor", data, ()=>{});
           //clear form
           title.value = "";
           book_id.value = "";
@@ -85,9 +87,9 @@ function encodeImageFileAsURL(element) {
   reader.readAsDataURL(file);
 }
 
-function sendRequestToServer(data, callback){
+function sendRequestToServer(ext, data, callback){
   var httpPost = new XMLHttpRequest();
-  var path = "https://vi64h2xk34.execute-api.us-east-1.amazonaws.com/alpha/spine";
+  var path = "https://vi64h2xk34.execute-api.us-east-1.amazonaws.com/alpha/" + ext;
   var data = JSON.stringify(data);
   httpPost.onreadystatechange = function(err) {
           if (httpPost.readyState == 4){
