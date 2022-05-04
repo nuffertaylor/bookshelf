@@ -1,5 +1,5 @@
 from colorthief import ColorThief
-from dynamodb_dao import getBook
+from dynamodb_dao import getBook, updateBook
 import os
 from PIL import Image
 import urllib.request
@@ -34,10 +34,12 @@ def lambda_handler(event, context):
   if(not verify_required_values(event)):
     return build_return(403, error_message)
   book = getBook(event)
+  title = book["title"]
   os.chdir("/tmp")
   urllib.request.urlretrieve(
     "https://bookshelf-spines.s3.amazonaws.com/" + book["fileName"],
     "temp.png")
-  domColor = calcDomRGB("temp.png")
-  return build_return(200, domColor)
+  book["domColor"] = calcDomRGB("temp.png")
+  updateBook(book)
+  return build_return(200, "updated color of " + title + " to " + book["domColor"])
     
