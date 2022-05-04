@@ -1,5 +1,6 @@
 import boto3
 from boto3.dynamodb.types import TypeDeserializer
+from boto3.dynamodb.conditions import Key
 
 region = "us-east-1"
 regionEndpoint = "https://dynamodb."+ region + ".amazonaws.com"
@@ -105,3 +106,48 @@ def getUser(username):
     return ds
   else:
     return False
+
+def get_update_params(body):
+  """Given a dictionary we generate an update expression and a dict of values
+  to update a dynamodb table.
+
+  Params:
+    body (dict): Parameters to use for formatting.
+
+  Returns:
+    update expression, dict of values.
+  """
+  update_expression = ["set "]
+  update_values = dict()
+
+  for key, val in body.items():
+    update_expression.append(f" {key} = :{key},")
+    update_values[f":{key}"] = val
+
+  return "".join(update_expression)[:-1], update_values
+
+"""
+title - primary_key
+book_id - sort_key
+data - the rest of the data to update 
+"""
+def updateBook(book):
+  title=""
+  book_id=""
+  #set title and book_id, then del those attr
+  if("title" in book):
+    title = book["title"]
+    del book["title"]
+  if("book_id" in book):
+    book_id = book["book_id"]
+    del book["book_id"]
+  
+  u, e = get_update_params(book)
+  response = table.update_item(
+    Key={"title" : title, "book_id" : book_id},
+    UpdateExpression=u,
+    ExpressionAttributeValues=dict(e),
+    ReturnValues="UPDATED_NEW"
+  )
+  return response
+  
