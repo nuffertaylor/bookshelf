@@ -54,7 +54,13 @@ def upload_fileobj(fileobj, object_name, bucket="bookshelf-spines", ):
 
 def openS3Image(file_name, bucket="bookshelf-spines"):
   bucket = s3.Bucket(bucket)
-  object = bucket.Object(file_name)
-  response = object.get()
+  obj = bucket.Object(file_name)
+  response = obj.get()
   file_stream = response['Body']
   return Image.open(file_stream)
+
+
+def delS3File(file_name, bucket="bookshelf-spines"):
+  bucket = s3.Bucket(bucket)
+  obj = bucket.Object(file_name)
+  obj.delete()
