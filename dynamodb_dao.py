@@ -1,18 +1,42 @@
 import boto3
 from boto3.dynamodb.types import TypeDeserializer
 from boto3.dynamodb.conditions import Key
+import time
 
 region = "us-east-1"
 regionEndpoint = "https://dynamodb."+ region + ".amazonaws.com"
 dynamodb = boto3.resource('dynamodb', endpoint_url=regionEndpoint)
 db_client = boto3.client("dynamodb", region)
 table = dynamodb.Table('bookshelf')
+usertable = dynamodb.Table('bookshelf-users')
+shelftable = dynamodb.Table('shelf-images')
 deserializer = TypeDeserializer()
 
 def split_list(a_list):
   #stackoverflow.com/questions/752308
   half = len(a_list)//2
   return a_list[:half], a_list[half:]
+
+def get_update_params(body):
+  """Given a dictionary we generate an update expression and a dict of values
+  to update a dynamodb table.
+
+  Params:
+    body (dict): Parameters to use for formatting.
+
+  Returns:
+    update expression, dict of values.
+  """
+  update_expression = ["set "]
+  update_values = dict()
+
+  for key, val in body.items():
+    update_expression.append(f" {key} = :{key},")
+    update_values[f":{key}"] = val
+
+  return "".join(update_expression)[:-1], update_values
+
+"""BOOKSHELF TABLE"""
 
 def putBook(title, book_id, pubDate = "", author = "", isbn = "", isbn13 = "", fileName = "", dimensions = "", domColor = "", genre = "", submitter = ""):
 
@@ -52,7 +76,6 @@ def getBookBatch(books):
   for x in res["Responses"]["bookshelf"]:
     ds.append({k: deserializer.deserialize(v) for k, v in x.items()})
   return ds
-  
 
 def getBook(book):
   if(book["title"] and book["book_id"]):
@@ -67,64 +90,6 @@ def getBook(book):
     # return ds
     return res["Items"][0] #just return the 0th element
   return None
-
-def putUser(username, hashedPassword, salt, email, ip, authtoken, expiry):
-  data = {
-      "username" : username,
-      "hashedPassword" : hashedPassword,
-      "salt" : salt,
-      "email" : email,
-      "ip" : ip,
-      "authtoken" : authtoken,
-      "expiry" : expiry
-  }
-  print("attempting to register user " + username + " from ip " + ip) 
-  try:
-    res = table.put_item(Item=data)
-    print("successfuly registered user " + username + " from ip " + ip) 
-    return res
-  except Exception as e:
-    print(e)
-    print("failed to register user " + username + " from ip " + ip) 
-    return False
-    
-def putAuthtoken(username, authtoken, expiry):
-  print("attempting to putAuthtoken for user " + username) 
-  try:
-    res = table.update_item(Key={"username" : username}, UpdateExpression="set authtoken=:a, expiry=:e", ExpressionAttributeValues={":a" : authtoken, ":e" : expiry})
-    print("successfuly putAuthtoken for user " + username) 
-    return res
-  except Exception as e:
-    print(e)
-    print("failed to putAuthtoken for user " + username) 
-    return False
-  
-def getUser(username):
-  res = db_client.get_item(TableName = "bookshelf-users", Key = {"username" : {"S" :username}})
-  if(len(res) > 1):
-    ds = {k: deserializer.deserialize(v) for k, v in res.get("Item").items()}
-    return ds
-  else:
-    return False
-
-def get_update_params(body):
-  """Given a dictionary we generate an update expression and a dict of values
-  to update a dynamodb table.
-
-  Params:
-    body (dict): Parameters to use for formatting.
-
-  Returns:
-    update expression, dict of values.
-  """
-  update_expression = ["set "]
-  update_values = dict()
-
-  for key, val in body.items():
-    update_expression.append(f" {key} = :{key},")
-    update_values[f":{key}"] = val
-
-  return "".join(update_expression)[:-1], update_values
 
 """
 title - primary_key
@@ -150,4 +115,77 @@ def updateBook(book):
     ReturnValues="UPDATED_NEW"
   )
   return response
+
+"""BOOKSHELF-USERS TABLE SECTION"""
+
+def putUser(username, hashedPassword, salt, email, ip, authtoken, expiry):
+  data = {
+      "username" : username,
+      "hashedPassword" : hashedPassword,
+      "salt" : salt,
+      "email" : email,
+      "ip" : ip,
+      "authtoken" : authtoken,
+      "expiry" : expiry
+  }
+  print("attempting to register user " + username + " from ip " + ip) 
+  try:
+    res = usertable.put_item(Item=data)
+    print("successfuly registered user " + username + " from ip " + ip) 
+    return res
+  except Exception as e:
+    print(e)
+    print("failed to register user " + username + " from ip " + ip) 
+    return False
+    
+def putAuthtoken(username, authtoken, expiry):
+  print("attempting to putAuthtoken for user " + username) 
+  try:
+    res = usertable.update_item(Key={"username" : username}, UpdateExpression="set authtoken=:a, expiry=:e", ExpressionAttributeValues={":a" : authtoken, ":e" : expiry})
+    print("successfuly putAuthtoken for user " + username) 
+    return res
+  except Exception as e:
+    print(e)
+    print("failed to putAuthtoken for user " + username) 
+    return False
   
+def getUser(username):
+  res = db_client.get_item(TableName = "bookshelf-users", Key = {"username" : {"S" :username}})
+  if(len(res) > 1):
+    ds = {k: deserializer.deserialize(v) for k, v in res.get("Item").items()}
+    return ds
+  else:
+    return False
+
+"""SHELF-IMAGES TABLE SECTION"""
+
+def putShelfImage(filename):
+  data = {
+    "filename" : filename,
+    "timestamp" : int(time.time())
+  }
+  print("attempting to put " + filename)
+  try:
+    res = shelftable.put_item(Item=data)
+    print("successfuly stored " + filename) 
+    return res
+  except Exception as e:
+    print(e)
+    print("failed to store " + filename) 
+    return False
+
+def getAllShelfImages():
+  response = shelftable.scan()
+  items = response['Items']
+  while 'LastEvaluatedKey' in response:
+    print(response['LastEvaluatedKey'])
+    response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+    items.extend(response['Items'])
+  return items
+
+def delShelfImage(filename):
+  try:
+    shelftable.delete_item(Key={"filename":filename})
+    return True
+  except Exception as e:
+    return False

@@ -221,7 +221,7 @@ def orderBooksByHeight(batch):
   return batch
 
 def orderBooksByPubDate(batch):
-  byDate = lambda b : b["pubDate"] if len(b["pubDate"]) > 0 else 3000 #if there's no pubdate, just put it at the end of the list
+  byDate = lambda b : int(b["pubDate"]) if len(b["pubDate"]) > 0 else 3000 #if there's no pubdate, just put it at the end of the list
   batch.sort(key=byDate)
   return batch
 
@@ -249,14 +249,14 @@ def buildBookshelfFromGoodreadsShelf(userid, shelfname, sortMethod = None):
   sortedBooks = orderBooksByShelfOrder(books, batch)
   if(sortMethod != None):
     sortedBooks = sortMethod(sortedBooks)
-  # print(sortedBooks)
-  bookshelf = Bookshelf(S3ImageOpener, "bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
-  bookshelf.fillShelf(sortedBooks)
-  bookshelf.showShelf()
+  print(sortedBooks)
+  # bookshelf = Bookshelf(S3ImageOpener, "bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
+  # bookshelf.fillShelf(sortedBooks)
+  # bookshelf.showShelf()
 
 #example building bookshelf
 # buildBookshelfFromGoodreadsShelf("24821860", "read")
-buildBookshelfFromGoodreadsShelf("119763485", "2021", orderBooksByPubDate)
+# buildBookshelfFromGoodreadsShelf("119763485", "2021", orderBooksByPubDate)
 
 def example():
   bookshelf = Bookshelf(PILImageOpener, "example/bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
