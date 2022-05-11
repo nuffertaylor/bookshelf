@@ -65,9 +65,9 @@ def putBook(title, book_id, pubDate = "", author = "", isbn = "", isbn13 = "", f
 
 def getBookBatch(books):
   keyList = []
-  # if(len(books) > 99): #max batch request size is 100. so we'll recursively split the list if it's too big
-  #   a, b = split_list(books)
-  #   return getBookBatch(a) + getBookBatch(b)
+  if(len(books) > 99): #max batch request size is 100. so we'll recursively split the list if it's too big
+    a, b = split_list(books)
+    return getBookBatch(a) + getBookBatch(b)
   for book in books:
     key = {"title" : {"S" : book["title"]}, "book_id" : {"S" : book["book_id"]}}
     keyList.append(key)
@@ -84,12 +84,13 @@ def getBook(book):
       ds = {k: deserializer.deserialize(v) for k, v in res.get("Item").items()}
       return ds
   #here we either weren't provided a book_id, or couldn't find the requested book_id (maybe a different edition has a spine)
-  res = table.query(KeyConditionExpression = Key("title").eq(book["title"]))
-  if(res["Items"]):
-    # ds = {k: deserializer.deserialize(v) for k, v in res["Items"][0]}
-    # return ds
-    return res["Items"][0] #just return the 0th element
-  return None
+  if(book["title"]):
+    res = table.query(KeyConditionExpression = Key("title").eq(book["title"]))
+    if(res["Items"]):
+      # ds = {k: deserializer.deserialize(v) for k, v in res["Items"][0]}
+      # return ds
+      return res["Items"][0] #just return the 0th element
+    return None
 
 """
 title - primary_key
