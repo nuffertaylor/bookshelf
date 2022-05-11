@@ -43,7 +43,8 @@ function getGRShelf(userid, shelfname) {
       document.getElementById("form_b").classList.add("hide");
       document.getElementById("temp_img").classList.remove("hide");
       sendPostRequestToServer("genshelf", data, (res)=>{
-        let url = res["body"];
+        let resObj = JSON.parse(res);
+        let url = resObj["body"];
         document.getElementById("temp_img").src = url;
       });
     }
