@@ -53,13 +53,18 @@ window.onload = ()=> {
           sendRequestToServer("calcdomcolor", data, ()=>{});
           //clear form
           title.value = "";
+          title.disabled = false;
           book_id.value = "";
+          book_id.disabled = false;
           dimensions.value = "";
           pubDate.value = "";
+          pubDate.disabled = false;
           authorName.value = "";
+          authorName.disabled = false;
           genre.value = "";
           imageInput.value = "";
           document.getElementById('displayImage').src = "";
+          document.getElementById("gr_fetch_data").value = "";
         }
         else alert("Something went wrong uploading " + title.value);
     });
