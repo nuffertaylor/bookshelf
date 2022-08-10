@@ -33,3 +33,26 @@ function getLocalIPAddress(callback)
   oReq.open("GET", "https://api.ipify.org?format=jsonp&callback=?");
   oReq.send();
 }
+
+function validUrl(url){
+  return /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[-;:&=\+\$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=\+\$,\w]+@)[A-Za-z0-9.-]+)((?:\/[\+~%\/.\w-_]*)?\??(?:[-\+=&;%@.\w_]*)#?(?:[\w]*))?)/.test(url);
+}
+
+function onlyDigits(str){
+  return /^\d+$/.test(str);
+}
+
+function onlyNumbers(string) { 
+  return (string.match(/^[0-9]+$/) != null); 
+}
+
+function getRequest(path, callback){
+  let httpGet = new XMLHttpRequest();
+  httpGet.onreadystatechange = callback;
+  httpGet.open("GET", path, true);
+  httpGet.send();
+}
+
+function disableElement(element){
+  element.disabled = !element.disabled;
+}
