@@ -54,5 +54,5 @@ function getRequest(path, callback){
 }
 
 function disableElement(element){
-  element.disabled = !element.disabled;
+  element.disabled = true;
 }
