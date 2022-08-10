@@ -6,13 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" href="../css/index.css">
+  <script src="../js/fetch_goodreads_data.js"></script>
   <script src="../js/upload_spine.js"></script>
   <script src="../js/utilities.js"></script>
 
   <title>Upload Book Spine</title>
   <link rel="icon" href="../images/bookshelf_icon.png">
+
+  <script src="https://static.sekandocdn.net/static/feednami/feednami-client-v1.1.js"></script>
 </head>
 <body>
+  <input id="gr_fetch_data" type="text" placeholder="enter goodreads url or book id here to autofill">
+  <button id="submit_gr_fetch" onclick="fetch_goodreads_data()">Get Goodreads Data</button>
+  <div id="bs_gr_holder" style="display:none;"></div>
   
   <div class="flexrow">
     <div class="flexitem">

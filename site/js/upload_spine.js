@@ -66,8 +66,6 @@ window.onload = ()=> {
   });
 };
 
-function onlyNumbers(string) { return (string.match(/^[0-9]+$/) != null); }
-
 function validDimensions(string) { return (string.match(/^([0-9]+\.*[0-9]* *[xX] *){2}([0-9]+\.*[0-9]*)/) != null); }
 
 function loggedIn(){
