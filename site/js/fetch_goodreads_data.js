@@ -1,5 +1,6 @@
 const corsURL = "https://cors-anywhere.herokuapp.com/"; //CHANGE TO YOUR PERSONAL CORS-ANYWHERE URL
 function get_gr_data(path) {
+  let book_id = path.replace(/^\D+/g, '');
   let httpGet = new XMLHttpRequest();
   httpGet.onreadystatechange = () => {
     if (httpGet.readyState == 4) {
@@ -10,8 +11,8 @@ function get_gr_data(path) {
       let l = document.links;
       for (var i = 0; i < l.length; i++) {
         if (l[i].href.includes("/review/list/")) {
-          let res = fetch_book_data(l[i].href, book_id);
-          if(res) return res; //return book data if we found the book we're looking for in the list we searched
+          fetch_book_data(l[i].href, book_id);
+          return; //we (should've) just found a link to a list with our desired book in it, so return so we only do this once.
         }
       }
       return ("found no relevant links");
@@ -31,9 +32,9 @@ function fetch_book_data(list_url, book_id) {
 		if(result.error) {
 			console.log(result.error);
 		} else {
-			var entries = result.feed.entries;
-			for(var i = 0; i < entries.length; i++){
-				var entry = entries[i];
+			let entries = result.feed.entries;
+			for(let i = 0; i < entries.length; i++){
+				let entry = entries[i];
         if(entry["rss:book_id"]["#"] == book_id.toString()){
           fill_input_fields(entry);
           clear_gr_element();
