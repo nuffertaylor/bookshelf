@@ -15,7 +15,8 @@ function get_gr_data(path) {
           return; //we (should've) just found a link to a list with our desired book in it, so return so we only do this once.
         }
       }
-      return ("found no relevant links");
+      alert("GoodReads data pull failed; Please enter book information manually.");
+      clear_gr_element();
     }
   };
   httpGet.open("GET", path, true);
@@ -28,15 +29,21 @@ function fetch_book_data(list_url, book_id) {
   let url = list_url.replace("list", "list_rss");
   url = url.replace(REQUEST_DOMAIN, "www.goodreads.com");
   // url = corsURL + url;
-  feednami.load(url, (result)=>{
+  feednami.load(url).then(result => {
 		if(result.error) {
 			console.log(result.error);
 		} else {
-			let entries = result.feed.entries;
+			let entries = result.entries;
 			for(let i = 0; i < entries.length; i++){
 				let entry = entries[i];
         if(entry["rss:book_id"]["#"] == book_id.toString()){
-          fill_input_fields(entry);
+          let mappedData = {
+            title : entry["title"],
+            book_id : entry["rss:book_id"]["#"],
+            pubDate : entry["rss:book_published"]["#"],
+            authorName : entry["rss:author_name"]["#"]
+          }
+          fill_input_fields(mappedData);
           clear_gr_element();
           return;
         }
@@ -47,14 +54,14 @@ function fetch_book_data(list_url, book_id) {
 }
 
 function fill_input_fields(entry){
-  title.value = entry["title"];
-  book_id.value = entry["rss:book_id"]["#"];
-  pubDate.value = entry["rss:book_published"]["#"];
-  authorName.value = ["rss:author_name"]["#"];
-  disableElement(title);
-  disableElement(book_id);
-  disableElement(pubDate);
-  disableElement(authorName);
+  title.value = entry.title;
+  book_id.value = entry.book_id;
+  pubDate.value = entry.pubDate;
+  authorName.value = entry.authorName;
+  title.disabled = true;
+  book_id.disabled = true;
+  pubDate.disabled = true;
+  authorName.disabled = true;
 }
 
 function clear_gr_element(){
