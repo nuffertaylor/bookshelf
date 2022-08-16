@@ -13,11 +13,9 @@ table = dynamodb.Table('bookshelf')
 
 def handler(event, context):
   book = None
-  if("title" in event.keys()):
-    book = (getBook(event))
-  # elif ("book_id" not in event.keys() and "title" not in event.keys()):
-  else:
+  if("title" not in event.keys()):
     return {"statusCode": 400, "body": "title required in order to get spine"}
+  book = (getBook(event))
   if(book):
     # bytes = openS3Image(book["fileName"]).read()
     # img = base64.b64encode(bytes).decode()
@@ -41,7 +39,7 @@ def sendQuery(colName, val):
   results = []
   scan_kwargs = {
     'FilterExpression': 'contains(#x, :val)',
-    'ProjectionExpression': "title, book_id, dimensions, fileName, pubDate",
+    'ProjectionExpression': "title, book_id, author, dimensions, domColor, fileName, genre, pubDate, submitter",
     'ExpressionAttributeNames': {
     '#x': colName
     },
