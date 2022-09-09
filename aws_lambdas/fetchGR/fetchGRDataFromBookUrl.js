@@ -52,13 +52,13 @@ function getAttrListFromRawAttrs(rawAttrs){
   return mappedResult;
 }
 
-function getReviewLinksFromPage(page){
+function get_review_links_from_page(page){
   let l = page.getElementsByTagName("a");
   let review_links = [];
   for (var i = 0; i < l.length; i++) {
     const attrMap = (getAttrListFromRawAttrs(l[i].rawAttrs))
     if(typeof attrMap["href"] === "undefined") continue;
-    if(attrMap["href"].includes("/review/list/")) 
+    if(attrMap["href"].includes("/review/list/"))
       review_links.push(attrMap["href"]);
   }
   //convert review_links to set to remove duplicates and convert back to arr
@@ -66,6 +66,33 @@ function getReviewLinksFromPage(page){
   return unique_links;
 }
 
+async function get_book_data_from_root_page(page, book_id){
+  //because goodreads has been reworked as a more modern app, the links to lists people added this book to don't load when i curl the page.
+  //so instead, using a bit of a hack, I'll access a page that still uses the old static format
+  //all I need is to instead fetch all the hrefs with "/review/show/", then run this same functionality there.
+  let l = page.getElementsByTagName("a");
+  for (var i = 0; i < l.length; i++) {
+    const attrMap = (getAttrListFromRawAttrs(l[i].rawAttrs))
+    if(typeof attrMap["href"] === "undefined") continue;
+    if(attrMap["href"].includes("/review/show/")){
+      let url_to_fetch = attrMap["href"] + "#comment_list";
+      if(!url_to_fetch.includes("https")) url_to_fetch = "https://www.goodreads.com" + url_to_fetch;
+      const page_HTML = await fetchPageFromURL(url_to_fetch);
+      const review_page = parse_html(page_HTML);
+      let review_links = get_review_links_from_page(review_page);
+      console.log(review_links);
+
+      //we only want to continue fetching new review links if the book isn't present on the ones we've got
+      const book = await fetch_book_data_recursive(review_links, book_id);
+      console.log("book is");
+      console.log(book);
+      if(book) return book;
+      //TODO: add a timeout to this function
+      //TODO: add a try/catch in case of invalid link
+    }
+  }
+  return false;
+}
 
 async function fetch_book_data_recursive(review_links, book_id){
   if(review_links.length < 1){
@@ -73,7 +100,8 @@ async function fetch_book_data_recursive(review_links, book_id){
     return false;
   }
   let list_url = review_links.shift(); //this grabs link[0] and pops it from the array
-  let url = "https://www.goodreads.com" + list_url.replace("list", "list_rss");
+  let url = list_url.replace("list", "list_rss");
+  if(!url.includes("https")) url = "https://www.goodreads.com" + url;
   console.log("==========================================");
   console.log("starting parse for url " + url);
   console.log("there are " + review_links.length + " link remaining");
@@ -99,9 +127,7 @@ async function main(url){
   const book_url = getBookUrlFromBookId(book_id);
   const page_HTML = await fetchPageFromURL(book_url);
   const page = parse_html(page_HTML);
-  const review_links = getReviewLinksFromPage(page);
-  console.log(review_links);
-  const book = await fetch_book_data_recursive(review_links, book_id);
+  const book = await get_book_data_from_root_page(page, book_id);
   console.log(book);
 }
 
