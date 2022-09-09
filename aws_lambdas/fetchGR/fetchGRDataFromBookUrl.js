@@ -58,8 +58,11 @@ function get_review_links_from_page(page){
   for (var i = 0; i < l.length; i++) {
     const attrMap = (getAttrListFromRawAttrs(l[i].rawAttrs))
     if(typeof attrMap["href"] === "undefined") continue;
-    if(attrMap["href"].includes("/review/list/"))
-      review_links.push(attrMap["href"]);
+    if(attrMap["href"].includes("/review/list/")){
+      let url = attrMap["href"];
+      if(!url.includes("https")) url = "https://www.goodreads.com" + url;
+      review_links.push(url);
+    }
   }
   //convert review_links to set to remove duplicates and convert back to arr
   let unique_links = [...new Set(review_links)];
@@ -84,8 +87,6 @@ async function get_book_data_from_root_page(page, book_id){
 
       //we only want to continue fetching new review links if the book isn't present on the ones we've got
       const book = await fetch_book_data_recursive(review_links, book_id);
-      console.log("book is");
-      console.log(book);
       if(book) return book;
       //TODO: add a timeout to this function
       //TODO: add a try/catch in case of invalid link
@@ -108,27 +109,64 @@ async function fetch_book_data_recursive(review_links, book_id){
   console.log("==========================================");
 
   let feed = await rss_parser.parseURL(url);
-  feed.items.forEach(item => {
+  console.log("found " + feed.items.length.toString() + " books in this list");
+  for(let i = 0; i < feed.items.length; i++){
+    let item = feed.items[i];
+
     console.log("found book " + item.title + " with book_id " + item.book_id + "\tlooking for " + book_id);
-    if(parseInt(item.book_id) != parseInt(book_id)) return;
+    
+    if(item.book_id !== book_id) return;
+    console.log("i shouldnt be here?")
     item.num_pages = item.book.num_pages;
     delete item.book;
     delete item.content;
     delete item.contentSnippet;
     return item;
-  });
+  }
   return fetch_book_data_recursive(review_links, book_id);
 }
 
 function removeNonNumericCharFromStr(str){return str.replace(/\D/g,'');}
 
-async function main(url){
+function get_book_data_from_book_page(page, book_id){
+  const book_title = page.querySelector("#bookTitle").childNodes[0]._rawText.trim();
+  const book_series = page.querySelector("#bookSeries").querySelector("a").childNodes[0]._rawText.trim();
+  const gr_title = book_title + " " + book_series;
+  const author_name = page.querySelector(".authorName").querySelector('[itemprop="name"]').childNodes[0]._rawText.trim();
+  const num_pages = removeNonNumericCharFromStr(page.querySelector('[itemprop="numberOfPages"]').childNodes[0]._rawText.trim());
+  const pub_date_string = page.querySelector('#details').querySelectorAll(".row")[1].childNodes[0]._rawText.trim().split("\n")[1].trim();
+  // const year = Date.parse(pub_date_string);
+  // console.log(year.getYear());
+  return {
+    book_id : book_id,
+    title : gr_title,
+    author : author_name,
+    pubDate : pub_date_string,
+    num_pages : num_pages
+  };
+}
+
+async function main_rss(url){
   const book_id = removeNonNumericCharFromStr(url);
   const book_url = getBookUrlFromBookId(book_id);
   const page_HTML = await fetchPageFromURL(book_url);
   const page = parse_html(page_HTML);
-  const book = await get_book_data_from_root_page(page, book_id);
+  const review_links = get_review_links_from_page(page);
+  const book = await fetch_book_data_recursive(review_links, book_id);
+  // const book = await get_book_data_from_root_page(page, book_id);
   console.log(book);
+}
+
+// let book = await fetch_book_data_recursive(["https://www.goodreads.com/review/list/23206148-terence?shelf=freebies&per_page=infinite", "https://www.goodreads.com/review/list/16731747?shelf=z-will-wight"], "30558257");
+// console.log(book);
+
+async function main(url){
+  const book_id = removeNonNumericCharFromStr(url);
+  const book_url = getBookUrlFromBookId(book_id);
+  const page_HTML = await fetchPageFromURL(book_url);
+  // fs.writeFileSync("test.html", page_HTML);
+  const page = parse_html(page_HTML);
+  const book = get_book_data_from_book_page(page, book_id);
 }
 
 // main("https://www.goodreads.com/book/show/30558257-unsouled")
