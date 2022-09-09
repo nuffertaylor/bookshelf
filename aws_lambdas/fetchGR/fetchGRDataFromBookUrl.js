@@ -1,7 +1,19 @@
 import fetch from 'node-fetch';
 import { parse as parse_html} from 'node-html-parser';
 import Parser from 'rss-parser';
-const rss_parser = new Parser();
+const rss_parser = new Parser({
+  customFields: {
+    item : [
+      "author_name",
+      "average_rating",
+      "book_id",
+      "book_published",
+      "isbn",
+      "title",
+      "book"
+    ]
+  }
+});
 
 
 process.on('uncaughtException', function (err) {
@@ -16,6 +28,10 @@ process.on('uncaughtException', function (err) {
 //   return response;
 // };
 
+function getBookUrlFromBookId(book_id){
+  const URL_PREFIX = "https://www.goodreads.com/book/show/";
+  return URL_PREFIX + book_id;
+}
 
 async function fetchPageFromURL(url){
   const response = await fetch(url);
@@ -45,7 +61,9 @@ function getReviewLinksFromPage(page){
     if(attrMap["href"].includes("/review/list/")) 
       review_links.push(attrMap["href"]);
   }
-  return review_links;
+  //convert review_links to set to remove duplicates and convert back to arr
+  let unique_links = [...new Set(review_links)];
+  return unique_links;
 }
 
 
@@ -56,31 +74,35 @@ async function fetch_book_data_recursive(review_links, book_id){
   }
   let list_url = review_links.shift(); //this grabs link[0] and pops it from the array
   let url = "https://www.goodreads.com" + list_url.replace("list", "list_rss");
-  console.log(url);
+  console.log("==========================================");
+  console.log("starting parse for url " + url);
+  console.log("there are " + review_links.length + " link remaining");
+  console.log("==========================================");
 
   let feed = await rss_parser.parseURL(url);
   feed.items.forEach(item => {
-    const parse_item_content = (content) => {
-      const split1 = content.split("<br/>");
-      const split2 = split1.map(e => e.split(":"));
-      let resultObj = {};
-      split2.forEach(item => {if(item.length > 1) resultObj[item[0].trim()] = item[1].trim()});
-      return resultObj;
-    }
-    //parse out the book_id for the given book (should be in an a tag in content)
-    //compare found book_id to provided book_id. if a match, return the book data. else, continue recursing this function with now shorter list.
-    //only do this parse if item.content exists!
-    let book = parse_item_content(item.content);
-    console.log(book);
-    book.pubDate = item.pubDate; //needs to be parsed into just year, currently formatted like Sat, 11 Jun 2022 05:56:40 -0700
-    book.title = item.title;
-    console.log(item);
-  })
+    console.log("found book " + item.title + " with book_id " + item.book_id + "\tlooking for " + book_id);
+    if(parseInt(item.book_id) != parseInt(book_id)) return;
+    item.num_pages = item.book.num_pages;
+    delete item.book;
+    delete item.content;
+    delete item.contentSnippet;
+    return item;
+  });
+  return fetch_book_data_recursive(review_links, book_id);
 }
 
-const page_HTML = await fetchPageFromURL("https://www.goodreads.com/book/show/6444191-the-virgin-warrior");
-const page = parse_html(page_HTML);
-const review_links = getReviewLinksFromPage(page);
-fetch_book_data_recursive(review_links);
+function removeNonNumericCharFromStr(str){return str.replace(/\D/g,'');}
 
+async function main(url){
+  const book_id = removeNonNumericCharFromStr(url);
+  const book_url = getBookUrlFromBookId(book_id);
+  const page_HTML = await fetchPageFromURL(book_url);
+  const page = parse_html(page_HTML);
+  const review_links = getReviewLinksFromPage(page);
+  console.log(review_links);
+  const book = await fetch_book_data_recursive(review_links, book_id);
+  console.log(book);
+}
 
+// main("https://www.goodreads.com/book/show/30558257-unsouled")
