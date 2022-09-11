@@ -16,7 +16,10 @@ async function fetch_page(url){
   return body;
 }
 
-function remove_non_numeric_char_from_str(str){return str.replace(/\D/g,'');}
+function remove_non_numeric_char_from_str(str){
+  if(str && typeof str === "string") return str.replace(/\D/g,'');
+  return null;
+}
 
 function get_book_data_from_book_page(page, book_id){
   const book_title = page.querySelector("#bookTitle").childNodes[0]._rawText.trim();
@@ -41,12 +44,12 @@ function get_book_data_from_book_page(page, book_id){
 }
 
 const main = async function (url){
+  if(!url) return {};
   const book_id = remove_non_numeric_char_from_str(url);
   const book_url = get_book_url_from_book_id(book_id);
   const page_HTML = await fetch_page(book_url);
   const page = parse_html(page_HTML);
   const book = get_book_data_from_book_page(page, book_id);
-  console.log(book);
   return book;
 }
 
