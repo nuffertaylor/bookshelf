@@ -1,5 +1,5 @@
 from bookshelf import Bookshelf
-from dynamodb_dao import putShelfImage
+from aws_lambdas.dynamodb_dao import putShelfImage
 import os
 import random
 from s3_dao import upload_file, openS3Image

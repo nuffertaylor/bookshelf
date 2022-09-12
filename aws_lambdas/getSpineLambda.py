@@ -1,6 +1,6 @@
 import boto3
 from boto3.dynamodb.conditions import Key
-from dynamodb_dao import getBook
+from aws_lambdas.dynamodb_dao import getBook
 from s3_dao import openS3Image
 from io import BytesIO
 import base64
