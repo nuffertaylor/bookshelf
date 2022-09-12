@@ -5,7 +5,7 @@ from randCol import getRandColor
 from random import random, choice
 import feedparser
 import copy
-from dynamodb_dao import getBookBatch, getBook
+from aws_lambdas.dynamodb_dao import getBookBatch, getBook
 import math
 import colorsys
 

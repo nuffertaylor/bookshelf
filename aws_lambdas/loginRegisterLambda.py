@@ -1,4 +1,4 @@
-from dynamodb_dao import putUser, putAuthtoken, getUser
+from aws_lambdas.dynamodb_dao import putUser, putAuthtoken, getUser
 import hashlib
 import json
 import random

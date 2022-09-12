@@ -1,7 +1,7 @@
 #ignore this file
 from colorthief import ColorThief
 import feedparser
-from dynamodb_dao import putBook
+from aws_lambdas.dynamodb_dao import putBook
 from s3_dao import upload_file
 from get_books import scrape_books_from_shelf
 

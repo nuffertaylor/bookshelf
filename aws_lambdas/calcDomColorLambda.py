@@ -1,5 +1,5 @@
 from colorthief import ColorThief
-from dynamodb_dao import getBook, updateBook
+from aws_lambdas.dynamodb_dao import getBook, updateBook
 import os
 from PIL import Image
 import urllib.request

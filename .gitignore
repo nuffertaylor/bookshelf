@@ -5,3 +5,6 @@ __pycache__
 fonts
 out
 node_modules
+cockroachdb_url.txt
+lambda.zip
+.vscode
