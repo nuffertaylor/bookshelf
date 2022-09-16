@@ -4,7 +4,7 @@ export const handler = async (event) => {
   const book = await main(event.url);
   const response = {
     statusCode: 200,
-    body: JSON.stringify(book),
+    body: book
   };
   return response;
 };
