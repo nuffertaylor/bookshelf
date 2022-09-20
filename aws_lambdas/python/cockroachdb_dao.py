@@ -3,7 +3,7 @@ import time
 
 class CockroachDAO:
   def __init__(self, db_url):
-    self.conn = psycopg2.connect(db_url)
+    self.conn = psycopg2.connect(db_url, sslrootcert="./root.crt")
 
   def exec_statement(self, stmt, args=None):
     try:
@@ -127,13 +127,25 @@ class CockroachDAO:
 
   def get_user_by(self, key, value):
     sql = "SELECT * FROM bookshelf_users WHERE " + key + " = %s"
-    return self.exec_statement_fetch(sql, (value,))
+    res = self.exec_statement_fetch(sql, (value,))
+    if(not res): return False
+    res = res[0]
+    return {
+      "username" : res[0],
+      "hashedPassword" : res[1],
+      "email" : res[2],
+      "authtoken" : res[3],
+      "expiry" : res[4],
+      "salt" : res[5],
+      "ip" : res[6],
+      "banned" : res[7]
+    }
 
   def get_user(self, username):
     return self.get_user_by("username", username)
 
   def update_user_authtoken(self, username, authtoken, expiry):
-    sql = "UPDATE bookshelf_users SET authoken = %s, expiry = %s WHERE username = %s"
+    sql = "UPDATE bookshelf_users SET authtoken = %s, expiry = %s WHERE username = %s"
     return self.exec_statement(sql, (authtoken, expiry, username))
   
   def get_banned_ips(self):

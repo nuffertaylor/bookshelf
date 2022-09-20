@@ -5,7 +5,6 @@ import time
 from cockroachdb_dao import CockroachDAO 
 db = CockroachDAO(os.getenv('DATABASE_URL'))
 
-
 def lambda_handler(event, context):
     if("requestType" not in event.keys()):
         return httpResult(400, "No requestType provided")
@@ -65,10 +64,10 @@ def registerUser(username, hashedPassword, salt, email, ip):
         return False
 
 def get24HoursFromNow():
-    return int( time.time() ) + (1000*60*24)
+    return str(int( time.time() ) + (1000*60*24))
     
 def get7DaysFromNow():
-    return int( time.time() ) + (7*1000*60*24)
+    return str( int( time.time() ) + (7*1000*60*24))
 
 def httpResult(statusCode, body):
     return {"statusCode" : statusCode, "body" : body}
