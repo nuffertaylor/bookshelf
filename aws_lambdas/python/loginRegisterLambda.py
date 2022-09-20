@@ -1,15 +1,17 @@
-from aws_lambdas.dynamodb_dao import putUser, putAuthtoken, getUser
 import hashlib
-import json
+import os
 import random
 import time
+from cockroachdb_dao import CockroachDAO 
+db = CockroachDAO(os.getenv('DATABASE_URL'))
+
 
 def lambda_handler(event, context):
     if("requestType" not in event.keys()):
         return httpResult(400, "No requestType provided")
     if(event["requestType"] == "register"):
         if(event["username"] and event["password"] and event["email"]):
-            if(not getUser(event["username"])):
+            if(not db.get_user(event["username"])):
                 salt = genSalt()
                 hashedPassword = hashAndSalt(event["password"], salt)
                 if("ip" not in event.keys()):
@@ -22,12 +24,12 @@ def lambda_handler(event, context):
             return httpResult(403, "invalid input, missing username, password, or email")
     elif(event["requestType"] == "login"):
         if(event["username"] and event["password"]):
-            userData = getUser(event["username"])
+            userData = db.get_user(event["username"])
             if(userData):
                 if(hashAndSalt(event["password"], userData["salt"]) == userData["hashedPassword"]):
                     expiry = get7DaysFromNow()
                     authtoken = genSalt()
-                    if(putAuthtoken(userData["username"], authtoken, expiry)):
+                    if(db.update_user_authtoken(userData["username"], authtoken, expiry)):
                         return httpResult(200, {"username" : userData["username"], "authtoken" : authtoken})
                     else:
                         return httpResult(400, "something went wrong")
@@ -49,7 +51,15 @@ def hashAndSalt(password, salt):
 def registerUser(username, hashedPassword, salt, email, ip):
     expiry = get24HoursFromNow()
     authtoken = genSalt()
-    if(putUser(username, hashedPassword, salt, email, ip, authtoken, expiry)):
+    if(db.add_user({
+      "username" : username,
+      "hashedPassword" : hashedPassword,
+      "email" : email,
+      "authtoken" : authtoken,
+      "expiry" : expiry,
+      "salt" : salt,
+      "ip" : ip
+    })):
         return authtoken
     else:
         return False

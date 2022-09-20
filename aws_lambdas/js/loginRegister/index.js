@@ -12,6 +12,6 @@ export const handler = async (event) => {
 //aws cli command to upload:
 /*
 zip -r lambda.zip .
-aws lambda update-function-code --function-name fetchGRDataFromBookUrl \
---zip-file fileb://~/projects/bookshelf/aws_lambdas/fetchGR/lambda.zip
+aws lambda update-function-code --function-name loginRegister \
+--zip-file fileb://~/projects/bookshelf/aws_lambdas/js/loginRegister/lambda.zip
 */
