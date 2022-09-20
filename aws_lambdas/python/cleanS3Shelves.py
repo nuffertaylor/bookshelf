@@ -1,4 +1,4 @@
-from aws_lambdas.dynamodb_dao import getAllShelfImages, delShelfImage
+from dynamodb_dao import getAllShelfImages, delShelfImage
 from s3_dao import delS3File
 
 def lambda_handler(event, context):

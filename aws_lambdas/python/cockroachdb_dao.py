@@ -114,16 +114,16 @@ class CockroachDAO:
 
   def add_user(self, user):
     sql = "INSERT INTO bookshelf_users (username, hashedPassword, email, authtoken, expiry, salt, ip, banned) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-    self.exec_statement(sql, (user["username"], user["hashedPassword"], user["email"], user["authtoken"], user["expiry"], user["salt"], user["ip"], "FALSE"))
+    return self.exec_statement(sql, (user["username"], user["hashedPassword"], user["email"], user["authtoken"], user["expiry"], user["salt"], user["ip"], "FALSE"))
 
   def add_users(self, userList):
     for user in userList:
       self.add_user(user)
 
   def ban_user(self, username):
-    sql = "UPDATE bookshelf_users SET banned = 'TRUE' WHERE username = username"
+    sql = "UPDATE bookshelf_users SET banned = 'TRUE' WHERE username = %s"
     #check their ip address and ban any other users with the same ip
-    self.exec_statement(sql)
+    self.exec_statement(sql, (username,))
 
   def get_user_by(self, key, value):
     sql = "SELECT * FROM bookshelf_users WHERE " + key + " = %s"
@@ -131,6 +131,10 @@ class CockroachDAO:
 
   def get_user(self, username):
     return self.get_user_by("username", username)
+
+  def update_user_authtoken(self, username, authtoken, expiry):
+    sql = "UPDATE bookshelf_users SET authoken = %s, expiry = %s WHERE username = %s"
+    return self.exec_statement(sql, (authtoken, expiry, username))
   
   def get_banned_ips(self):
     sql = "SELECT ip FROM bookshelf_users WHERE banned = 'TRUE'"
