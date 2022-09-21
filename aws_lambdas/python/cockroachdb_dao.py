@@ -97,6 +97,18 @@ class CockroachDAO:
     sql = "SELECT * FROM bookshelf WHERE " + key + " = %s"
     return self.exec_statement_fetch(sql, (value,))
 
+  def get_book_batch(self, book_batch):
+    sql = "SELECT * FROM bookshelf WHERE book_id IN ("
+    book_ids = []
+    for b in book_batch:
+      book_ids.append(b["book_id"])
+    percentS = ""
+    for i in range(len(book_ids)):
+      percentS += "%s"
+      if(i != len(book_ids)-1): percentS += ", "
+    sql += percentS + ") OR title IN (" + percentS + ")"
+    return self.exec_statement_fetch(sql, tuple(book_ids))
+
   def add_books(self, bookList):
     for book in bookList:
       #don't attempt to add books with duplicate filenames
@@ -155,7 +167,14 @@ class CockroachDAO:
     pass
 
   def get_leaderboard(self):
-    pass
+    sql = """
+    SELECT submitter, COUNT(*) as count 
+    FROM bookshelf 
+    GROUP BY submitter 
+    ORDER BY count DESC;
+    """
+    #todo: this data needs to be parsed
+    return self.exec_statement_fetch(sql)
 
   def flag_image(self, upload_id):
     pass
