@@ -42,7 +42,7 @@ def get_books_from_shelf(userid, shelfname):
     page_counter += 1
   return books
 
-def whichBooksFound(bookList, foundBooks):
+def   which_books_found(bookList, foundBooks):
   #return a list, the edited bookList which only contains the books not found in foundBooks
   unfound = []
   for b in bookList:
@@ -60,7 +60,7 @@ def getGRbookshelf(userid, shelfname):
   print("looking for " + str(len(books)) + " books")
   batch = db.get_book_batch(books)
   print("found images for " + str(len(batch)) + " books")
-  unfound = whichBooksFound(books, batch)
+  unfound =   which_books_found(books, batch)
   return {
     "found" : batch,
     "unfound" : unfound
@@ -71,3 +71,6 @@ def lambda_handler(event, context):
     'statusCode': 200,
     'body': getGRbookshelf(event["userid"], event["shelfname"])
   }
+
+# zip -r lambda.zip .
+# aws lambda update-function-code --function-name getGRbookshelf --zip-file fileb://~/projects/bookshelf/aws_lambdas/python/lambda.zip
