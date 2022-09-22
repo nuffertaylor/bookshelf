@@ -83,7 +83,8 @@ def lambda_handler(event, context):
     event["fileName"] = file_name
     result = db.add_book(event)
 
+  #TODO: instead of returning "success", return the entire newly created book object including its new upload_id
+
   if(result):
     return build_return(200, "successfully inserted " + event["title"])
-  else:
-    return build_return(500, "failed to upload spine for " + event["title"])
+  return build_return(500, "failed to upload spine for " + event["title"])

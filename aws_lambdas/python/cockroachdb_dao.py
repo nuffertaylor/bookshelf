@@ -145,6 +145,15 @@ class CockroachDAO:
         continue
       self.add_book(book)
 
+  #todo: dynamic function that updates all changed values in a book object.
+  def update_book(self, book):
+    if("upload_id" not in book.keys()): return False
+    return False
+
+  def update_book_col(self, upload_id, col, value):
+    sql = "UPDATE bookshelf set " + col + " = %s WHERE upload_id = %s"
+    return self.exec_statement(sql, (value, upload_id))
+
   def add_shelf_image(self, filename):
     sql = "INSERT INTO shelf_images (filename, timestamp) VALUES (%s, %s)"
     self.exec_statement(sql, (filename, str(int(time.time()))))
