@@ -95,19 +95,48 @@ class CockroachDAO:
 
   def get_book_by(self, key, value):
     sql = "SELECT * FROM bookshelf WHERE " + key + " = %s"
-    return self.exec_statement_fetch(sql, (value,))
+    book_tuple = self.exec_statement_fetch(sql, (value,))
+    return self.format_book_tuple(book_tuple)
 
   def get_book_batch(self, book_batch):
     sql = "SELECT * FROM bookshelf WHERE book_id IN ("
-    book_ids = []
-    for b in book_batch:
-      book_ids.append(b["book_id"])
     percentS = ""
-    for i in range(len(book_ids)):
+    for i in range(len(book_batch)):
       percentS += "%s"
-      if(i != len(book_ids)-1): percentS += ", "
+      if(i != len(book_batch)-1): percentS += ", "
     sql += percentS + ") OR title IN (" + percentS + ")"
-    return self.exec_statement_fetch(sql, tuple(book_ids))
+
+    book_ids_and_titles = []
+    for b in book_batch:
+      book_ids_and_titles.append(b["book_id"])
+    for b in book_batch:
+      book_ids_and_titles.append(b["title"])
+    res = self.exec_statement_fetch(sql, tuple(book_ids_and_titles))
+    book_list = []
+    for r in res:
+      book_list.append(self.format_book_tuple(r))
+    return book_list
+
+  def format_book_tuple(self, book_tuple):
+    return {
+      "upload_id" : book_tuple[0],
+      "book_id" : book_tuple[1],
+      "title" : book_tuple[2],
+      "author" : book_tuple[3],
+      "dimensions" : book_tuple[4],
+      "domColor" : book_tuple[5],
+      "fileName" : book_tuple[6],
+      "genre" : book_tuple[7],
+      "isbn" : book_tuple[8],
+      "isbn13" : book_tuple[9],
+      "pubDate" : book_tuple[10],
+      "submitter" : book_tuple[11],
+      "rating" : book_tuple[12],
+      "flagged" : book_tuple[13],
+      "authorGender" : book_tuple[14],
+      "country" : book_tuple[15],
+      "language" : book_tuple[16]
+    }
 
   def add_books(self, bookList):
     for book in bookList:
