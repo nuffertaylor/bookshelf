@@ -90,8 +90,14 @@ class CockroachDAO:
     self.exec_statement(create_bookshelf_sql)
 
   def add_book(self, book):
-    sql = 'INSERT INTO bookshelf (book_id, title, author, dimensions, domColor, fileName, genre, isbn, isbn13, pubDate, submitter, rating) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
-    return self.exec_statement(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["domColor"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], "0"))
+    sql = """
+          INSERT INTO bookshelf 
+          (book_id, title, author, dimensions, domColor, fileName, genre, isbn, isbn13, pubDate, submitter, rating) 
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+          RETURNING upload_id
+          """
+    res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["domColor"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], "0"))
+    return {"upload_id" : res[0]}
 
   def get_book_by(self, key, value):
     sql = "SELECT * FROM bookshelf WHERE " + key + " = %s"
