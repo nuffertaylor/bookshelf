@@ -1,9 +1,10 @@
 from bookshelf import Bookshelf
-from dynamodb_dao import putShelfImage
+from cockroachdb_dao import CockroachDAO
 import os
 import random
 from s3_dao import upload_file, openS3Image
 import string
+db = CockroachDAO(os.getenv('DATABASE_URL'))
 
 def build_return(code, msg):
   return {"statusCode" : code, "body" : msg}
@@ -24,6 +25,6 @@ def lambda_handler(event, context):
   fileName = rand_str(10) + ".jpg"
   bookshelf.saveShelf(fileName)
   if(upload_file(fileName)):
-    putShelfImage(fileName)
+    db.add_shelf_image(fileName)
     image_url = "https://bookshelf-spines.s3.amazonaws.com/" + fileName
     return build_return(200, image_url)
