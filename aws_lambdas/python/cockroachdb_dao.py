@@ -222,8 +222,11 @@ class CockroachDAO:
     GROUP BY submitter 
     ORDER BY count DESC;
     """
-    #todo: this data needs to be parsed
-    return self.exec_statement_fetch(sql)
+    results = self.exec_statement_fetch(sql)
+    leaderboard = []
+    for r in results:
+      leaderboard.append({"username" : r[0], "spines" : r[1]})
+    return leaderboard
 
   def flag_image(self, upload_id):
     pass
