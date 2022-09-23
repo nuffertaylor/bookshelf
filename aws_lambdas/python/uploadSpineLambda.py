@@ -87,3 +87,6 @@ def lambda_handler(event, context):
     #result object is {upload_id : id}
     return build_return(200, result)
   return build_return(500, "failed to upload spine for " + event["title"])
+
+# zip -r lambda.zip .
+# aws lambda update-function-code --function-name uploadSpine --zip-file fileb://~/projects/bookshelf/aws_lambdas/python/lambda.zip
