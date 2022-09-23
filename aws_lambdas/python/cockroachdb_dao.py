@@ -92,17 +92,22 @@ class CockroachDAO:
   def add_book(self, book):
     sql = """
           INSERT INTO bookshelf 
-          (book_id, title, author, dimensions, domColor, fileName, genre, isbn, isbn13, pubDate, submitter, rating) 
-          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+          (book_id, title, author, dimensions, fileName, genre, isbn, isbn13, pubDate, submitter, rating) 
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
           RETURNING upload_id
           """
-    res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["domColor"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], "0"))
-    return {"upload_id" : res[0]}
+    res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], "0"))
+    u_id = res[0]
+    if(type(u_id) == list): u_id = u_id[0]
+    return {"upload_id" : u_id}
 
   def get_book_by(self, key, value):
     sql = "SELECT * FROM bookshelf WHERE " + key + " = %s"
-    book_tuple = self.exec_statement_fetch(sql, (value,))
-    return self.format_book_tuple(book_tuple)
+    res_list = self.exec_statement_fetch(sql, (value,))
+    if(len(res_list) > 0): 
+      book_tuple = res_list[0] #only concerned with the first result. write get_bookS for multiple
+      return self.format_book_tuple(book_tuple)
+    return False
 
   def get_book_batch(self, book_batch):
     sql = "SELECT * FROM bookshelf WHERE book_id IN ("

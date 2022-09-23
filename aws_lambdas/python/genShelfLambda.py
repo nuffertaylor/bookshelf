@@ -28,3 +28,4 @@ def lambda_handler(event, context):
     db.add_shelf_image(fileName)
     image_url = "https://bookshelf-spines.s3.amazonaws.com/" + fileName
     return build_return(200, image_url)
+  return build_return(400, "bookshelf creation failed")
