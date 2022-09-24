@@ -50,7 +50,8 @@ class CockroachDAO:
       expiry INT NOT NULL,
       salt VARCHAR ( 100 ) NOT NULL,
       ip VARCHAR ( 24 ),
-      banned BOOLEAN NOT NULL
+      banned BOOLEAN NOT NULL,
+      goodreads_id STRING
     );
     """
     self.exec_statement(create_bookshelf_users_sql)
@@ -186,6 +187,10 @@ class CockroachDAO:
     #check their ip address and ban any other users with the same ip
     self.exec_statement(sql, (username,))
 
+  def update_user_col(self, username, col, val):
+    sql = "UPDATE bookshelf_users SET " + col + " = %s WHERE username = %s"
+    return self.exec_statement(sql, (val, username))
+
   def get_user_by(self, key, value):
     sql = "SELECT * FROM bookshelf_users WHERE " + key + " = %s"
     res = self.exec_statement_fetch(sql, (value,))
@@ -199,7 +204,8 @@ class CockroachDAO:
       "expiry" : res[4],
       "salt" : res[5],
       "ip" : res[6],
-      "banned" : res[7]
+      "banned" : res[7],
+      "goodreads_id" : res[8]
     }
 
   def get_user(self, username):
