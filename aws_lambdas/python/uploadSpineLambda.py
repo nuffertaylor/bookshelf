@@ -72,6 +72,11 @@ def lambda_handler(event, context):
   if(not validate_username_authtoken(event["username"], event["authtoken"])):
     return build_return(403, error_message)
 
+  existing_record = db.has_username_uploaded_book(event["username"], event["book_id"])
+  if(existing_record):
+    #TODO: allow user to overwrite old spine upload
+    return build_return(403, "user has already uploaded a spine image for this book.")
+
   extension = get_ext_from_b64(event["image"])
   b64str = pad_b64_str(event["image"])
   decoded = b64decode(b64str)
