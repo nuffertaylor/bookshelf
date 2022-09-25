@@ -1,7 +1,7 @@
 from cockroachdb_dao import CockroachDAO
 from colorthief import ColorThief
 import os
-from PIL import Image
+from PIL import Image # type: ignore
 import urllib.request
 db = CockroachDAO(os.getenv('DATABASE_URL'))
 

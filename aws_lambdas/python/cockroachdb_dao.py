@@ -110,6 +110,12 @@ class CockroachDAO:
       return self.format_book_tuple(book_tuple)
     return False
 
+  def has_username_uploaded_book(self, username, book_id):
+    sql = "SELECT * FROM bookshelf WHERE submitter = %s AND book_id = %s"
+    res = self.exec_statement_fetch(sql, (username, book_id))
+    if(res.length > 0): return self.format_book_tuple(res[0])
+    return False
+
   def get_book_batch(self, book_batch):
     sql = "SELECT * FROM bookshelf WHERE book_id IN ("
     percentS = ""
