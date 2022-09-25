@@ -15,5 +15,6 @@ def lambda_handler(event, context):
   if(user["authtoken"] != event["authtoken"] or user["expiry"] < int(time.time())):
     return br(403, "invalid authtoken")
   if(db.update_user_col(event["username"], "goodreads_id", event["goodreads_id"])):
-    return br(200, "success")
+    user["goodreads_id"] = event["goodreads_id"]
+    return br(200, user)
   return br(400, "something went wrong")
