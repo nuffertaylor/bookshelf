@@ -35,34 +35,40 @@ def get_books_from_shelf(userid, shelfname):
               "pubDate" : entry["book_published"],
               "author" : entry["author_name"],
               "isbn" : entry["isbn"],
-              "isbn13" : convertISBNtoISBN13(entry["isbn"])
+              "isbn13" : convertISBNtoISBN13(entry["isbn"]),
+              "user_read_at" : entry["user_read_at"],
+              "average_rating" : entry["average_rating"],
+              "user_rating" : entry["user_rating"]
               }
       books.append(book)
     if(len(parsed_rss["entries"]) != 100): break
     page_counter += 1
   return books
 
-def   which_books_found(bookList, foundBooks):
+def which_books_found(bookList, foundBooks):
   #return a list, the edited bookList which only contains the books not found in foundBooks
   unfound = []
+  found = []
   for b in bookList:
-    found = False
+    foundBool = False
     for f in foundBooks:
-      if(b["title"] == f["title"]):
-        found = True
+      if(b["book_id"] == f["book_id"] or b["title"] == f["title"]):
+        foundBool = True
+        f.update(b)
+        found.append(f)
         break
-    if(not found):
+    if(not foundBool):
       unfound.append(b)
-  return unfound
+  return found, unfound
 
 def getGRbookshelf(userid, shelfname):
   books = get_books_from_shelf(userid, shelfname)
   print("looking for " + str(len(books)) + " books")
   batch = db.get_book_batch(books)
   print("found images for " + str(len(batch)) + " books")
-  unfound =   which_books_found(books, batch)
+  found, unfound = which_books_found(books, batch)
   return {
-    "found" : batch,
+    "found" : found,
     "unfound" : unfound
   }
   
