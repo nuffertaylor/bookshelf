@@ -45,4 +45,5 @@ def lambda_handler(event, context):
   if(db.update_book_col(book["upload_id"], "domColor", book["domColor"])):
     return build_return(200, "updated color of " + title + " to " + book["domColor"])
   return build_return(400, "something went wrong setting the updated domColor")
-    
+
+#note: no longer used

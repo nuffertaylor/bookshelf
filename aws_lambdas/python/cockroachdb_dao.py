@@ -93,11 +93,11 @@ class CockroachDAO:
   def add_book(self, book):
     sql = """
           INSERT INTO bookshelf 
-          (book_id, title, author, dimensions, fileName, genre, isbn, isbn13, pubDate, submitter, rating) 
+          (book_id, title, author, dimensions, fileName, genre, isbn, isbn13, pubDate, submitter, domColor, rating) 
           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
           RETURNING upload_id
           """
-    res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], "0"))
+    res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], book["domColor"], "0"))
     u_id = res[0]
     if(type(u_id) == list): u_id = u_id[0]
     return {"upload_id" : u_id}
