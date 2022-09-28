@@ -39,8 +39,9 @@ def handleLogin(username, password):
     return httpResult(403, "invalid password")
   expiry = get7DaysFromNow()
   authtoken = genSalt()
-  if(db.update_user_authtoken(username, authtoken, expiry)):
-    return httpResult(200, {"username" : username, "authtoken" : authtoken})
+  res = db.update_user_authtoken(username, authtoken, expiry)
+  if(res):
+    return httpResult(200, {"username" : res["username"], "authtoken" : res["authtoken"], "goodreads_id" : res["goodreads_id"]})
   return httpResult(400, "something went wrong, please try again later.")
 
 def registerUser(username, hashedPassword, salt, email, ip):
