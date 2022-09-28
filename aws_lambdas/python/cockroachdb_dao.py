@@ -219,7 +219,9 @@ class CockroachDAO:
 
   def update_user_authtoken(self, username, authtoken, expiry):
     sql = "UPDATE bookshelf_users SET authtoken = %s, expiry = %s WHERE username = %s"
-    return self.exec_statement(sql, (authtoken, expiry, username))
+    if(self.exec_statement(sql, (authtoken, expiry, username))):
+      return self.get_user(username)
+    return False
   
   def get_banned_ips(self):
     sql = "SELECT ip FROM bookshelf_users WHERE banned = 'TRUE'"
