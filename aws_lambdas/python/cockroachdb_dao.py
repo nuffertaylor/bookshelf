@@ -94,7 +94,7 @@ class CockroachDAO:
     sql = """
           INSERT INTO bookshelf 
           (book_id, title, author, dimensions, fileName, genre, isbn, isbn13, pubDate, submitter, domColor, rating) 
-          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
           RETURNING upload_id
           """
     res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], book["domColor"], "0"))
@@ -113,7 +113,7 @@ class CockroachDAO:
   def has_username_uploaded_book(self, username, book_id):
     sql = "SELECT * FROM bookshelf WHERE submitter = %s AND book_id = %s"
     res = self.exec_statement_fetch(sql, (username, book_id))
-    if(res.length > 0): return self.format_book_tuple(res[0])
+    if(len(res) > 0): return self.format_book_tuple(res[0])
     return False
 
   def get_book_batch(self, book_batch):
