@@ -242,6 +242,15 @@ class CockroachDAO:
       leaderboard.append({"username" : r[0], "spines" : r[1]})
     return leaderboard
 
+  def get_books_by_submitter(self, submitter):
+    sql = "select * from bookshelf where submitter = %s"
+    res = self.exec_statement_fetch(sql, (submitter,))
+    if(not res): return False
+    books = []
+    for r in res:
+      books.append(self.format_book_tuple(r))
+    return books
+
   def flag_image(self, upload_id):
     pass
 
