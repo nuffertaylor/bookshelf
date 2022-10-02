@@ -61,7 +61,8 @@ class CockroachDAO:
     CREATE TABLE IF NOT EXISTS shelf_images (
       shelf_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       filename STRING UNIQUE NOT NULL,
-      timestamp INT NOT NULL
+      timestamp INT NOT NULL,
+      owner STRING NULL
     );
     """
     self.exec_statement(create_shelf_image_sql)
@@ -83,9 +84,7 @@ class CockroachDAO:
       submitter STRING NOT NULL,
       rating INT NULL,
       flagged BOOLEAN NULL,
-      authorGender STRING NULL,
-      country STRING NULL,
-      language STRING NULL
+      timestamp INT NULL
     );
     """
     self.exec_statement(create_bookshelf_sql)
@@ -93,11 +92,11 @@ class CockroachDAO:
   def add_book(self, book):
     sql = """
           INSERT INTO bookshelf 
-          (book_id, title, author, dimensions, fileName, genre, isbn, isbn13, pubDate, submitter, domColor, rating) 
-          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+          (book_id, title, author, dimensions, fileName, genre, isbn, isbn13, pubDate, submitter, domColor, rating, timestamp) 
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
           RETURNING upload_id
           """
-    res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], book["domColor"], "0"))
+    res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], book["domColor"], "0", str(int(time.time()))))
     u_id = res[0]
     if(type(u_id) == list): u_id = u_id[0]
     return {"upload_id" : u_id}
@@ -150,10 +149,15 @@ class CockroachDAO:
       "pubDate" : book_tuple[10],
       "submitter" : book_tuple[11],
       "rating" : book_tuple[12],
-      "flagged" : book_tuple[13],
-      "authorGender" : book_tuple[14],
-      "country" : book_tuple[15],
-      "language" : book_tuple[16]
+      "flagged" : book_tuple[13]
+    }
+
+  def format_shelf_image_tuple(self, shelf_image_tuple):
+    return {
+      "shelf_id" : shelf_image_tuple[0],
+      "filename" : shelf_image_tuple[1],
+      "timestamp" : shelf_image_tuple[2],
+      "owner" : shelf_image_tuple[3]
     }
 
   def add_books(self, bookList):
@@ -222,6 +226,16 @@ class CockroachDAO:
     if(self.exec_statement(sql, (authtoken, expiry, username))):
       return self.get_user(username)
     return False
+
+  def validate_username_authtoken(self, username, authtoken):
+    user = self.get_user(username)
+    if(not user): 
+      return False
+    if(authtoken != user["authtoken"]):
+      return False
+    if(int(time.time()) > int(user["expiry"])):
+      return False
+    return True
   
   def get_banned_ips(self):
     sql = "SELECT ip FROM bookshelf_users WHERE banned = 'TRUE'"
@@ -250,6 +264,28 @@ class CockroachDAO:
     for r in res:
       books.append(self.format_book_tuple(r))
     return books
+
+  def set_shelf_image_owner(self, filename, username):
+    sql = "UPDATE shelf_images SET owner = %s where filename = %s"
+    return self.exec_statement(sql, (username, filename))
+
+  #longevity corresponds to the number of days the shelf image is allowed to exist on the server. default is one day
+  def get_shelf_images_to_delete(self, longevity=1):
+    allowedTimestamp = int(time.time()) - (longevity * 60 * 60 * 24)
+    sql = """SELECT * FROM shelf_images
+              WHERE timestamp < %s::integer
+              AND owner IS NULL
+    """
+    res = self.exec_statement_fetch(sql, (allowedTimestamp,))
+    if(not res): return False
+    si = []
+    for r in res:
+      si.append(self.format_shelf_image_tuple(r))
+    return si
+
+  def delete_shelf_image(self, shelf_id):
+    sql = "DELETE FROM shelf_images WHERE shelf_id = %s"
+    return self.exec_statement(sql, (shelf_id,))
 
   def flag_image(self, upload_id):
     pass
