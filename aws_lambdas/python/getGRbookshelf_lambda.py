@@ -52,7 +52,7 @@ def which_books_found(bookList, foundBooks):
   for b in bookList:
     foundBool = False
     for f in foundBooks:
-      if(b["book_id"] == f["book_id"] or b["title"] == f["title"]):
+      if(str(b["book_id"]) == str(f["book_id"]) or b["title"] == f["title"]):
         foundBool = True
         f.update(b)
         found.append(f)
