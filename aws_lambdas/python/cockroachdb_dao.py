@@ -160,6 +160,13 @@ class CockroachDAO:
       "owner" : shelf_image_tuple[3]
     }
 
+  def format_shelf_image_tuple_list(self, si_list):
+    if(type(si_list) is not list): return False
+    si = []
+    for r in si_list:
+      si.append(self.format_shelf_image_tuple(r))
+    return si
+
   def add_books(self, bookList):
     for book in bookList:
       #don't attempt to add books with duplicate filenames
@@ -269,6 +276,11 @@ class CockroachDAO:
     sql = "UPDATE shelf_images SET owner = %s where filename = %s"
     return self.exec_statement(sql, (username, filename))
 
+  def get_shelf_images_by_owner(self, owner):
+    sql = "SELECT * FROM shelf_images WHERE OWNER = %s"
+    res = self.exec_statement_fetch(sql, (owner,))
+    return self.format_shelf_image_tuple_list(res)
+
   #longevity corresponds to the number of days the shelf image is allowed to exist on the server. default is one day
   def get_shelf_images_to_delete(self, longevity=1):
     allowedTimestamp = int(time.time()) - (longevity * 60 * 60 * 24)
@@ -277,11 +289,7 @@ class CockroachDAO:
               AND owner IS NULL
     """
     res = self.exec_statement_fetch(sql, (allowedTimestamp,))
-    if(not res): return False
-    si = []
-    for r in res:
-      si.append(self.format_shelf_image_tuple(r))
-    return si
+    return self.format_shelf_image_tuple_list(res)
 
   def delete_shelf_image(self, shelf_id):
     sql = "DELETE FROM shelf_images WHERE shelf_id = %s"
