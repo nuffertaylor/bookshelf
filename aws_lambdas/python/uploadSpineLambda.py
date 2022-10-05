@@ -92,21 +92,26 @@ def lambda_handler(event, context):
   if(not file_name):
     return build_return(500, "failed to upload spine for " + event["title"])
 
-  if(event.has_key("replace_img") and event["replace_img"] and event.has_key("upload_id")):
-    book = db.get_book_by("upload_id", event["upload_id"])
-    delS3File(book["fileName"])
-    if(db.update_book_file_name(book["upload_id"], file_name)):
-      return build_return(200, {"upload_id" : book["upload_id"]})
-    return build_return(500, "something went wrong uploading spine for " + event["title"])
-
   existing_record = db.has_username_uploaded_book(event["username"], event["book_id"])
   if(existing_record):
-    result = {
-      "upload_id" : existing_record["upload_id"],
-      "already_uploaded" : True,
-      "fileName" : existing_record["fileName"]
-    }
-    return build_return(200, result)
+    if(not event.has_key("replace_img")):
+      result = {
+        "upload_id" : existing_record["upload_id"],
+        "already_uploaded" : True,
+        "fileName" : existing_record["fileName"]
+      }
+      return build_return(200, result)
+    #only delete previous rows for replacement image if we've 
+    #a) authenticated the user (done above)
+    #b) verified the user owns the row we're deleting (done in this if statement)
+    if(event.has_key("replace_img") and event["replace_img"] and event.has_key("upload_id")):
+      book = db.get_book_by("upload_id", event["upload_id"])
+      delS3File(book["fileName"])
+      db.delete_book(event["upload_id"])
+      #rather than just changing the file attr, we'll just use the data to create a new row, in case a piece of other data has changed (like the dimensions)
+      # if(db.update_book_file_name(book["upload_id"], file_name)):
+      #   return build_return(200, {"upload_id" : book["upload_id"]})
+      # return build_return(500, "something went wrong uploading spine for " + event["title"])
 
   result["fileName"] = file_name
   result = db.add_book(event)
