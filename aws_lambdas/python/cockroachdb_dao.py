@@ -134,6 +134,10 @@ class CockroachDAO:
       book_list.append(self.format_book_tuple(r))
     return book_list
 
+  def update_book_file_name(self, upload_id, fileName):
+    sql = "UPDATE bookshelf set fileName = %s where upload_id = %s"
+    return self.exec_statement(sql, (fileName, upload_id))
+
   def format_book_tuple(self, book_tuple):
     return {
       "upload_id" : book_tuple[0],
