@@ -2,15 +2,19 @@ from base64 import b64decode
 from cockroachdb_dao import CockroachDAO
 from io import BytesIO
 import os
+import random
 from s3_dao import upload_fileobj, delS3File
 import time
 
 db = CockroachDAO(os.getenv('DATABASE_URL'))
 MAX_UPLOAD_SIZE_BYTES = 6291456
 
+def rand_str(num_char):
+  return ''.join(random.choice("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") for i in range(num_char))
+
 def create_filename(title, book_id, extension):
   t = ''.join(ch for ch in title if ch.isalnum())
-  return t + "-" + book_id + "." + extension
+  return t + "-" + book_id +  "-" + rand_str(10) + "." + extension
 
 def get_ext_from_b64(b64str):
   a = b64str.split(';')[0]
@@ -94,7 +98,7 @@ def lambda_handler(event, context):
 
   existing_record = db.has_username_uploaded_book(event["username"], event["book_id"])
   if(existing_record):
-    if(not event.has_key("replace_img")):
+    if("replace_img" not in event):
       result = {
         "upload_id" : existing_record["upload_id"],
         "already_uploaded" : True,
@@ -104,7 +108,7 @@ def lambda_handler(event, context):
     #only delete previous rows for replacement image if we've 
     #a) authenticated the user (done above)
     #b) verified the user owns the row we're deleting (done in this if statement)
-    if(event.has_key("replace_img") and event["replace_img"] and event.has_key("upload_id")):
+    if("replace_img" in event and event["replace_img"] and "upload_id" in event):
       book = db.get_book_by("upload_id", event["upload_id"])
       delS3File(book["fileName"])
       db.delete_book(event["upload_id"])
@@ -113,7 +117,7 @@ def lambda_handler(event, context):
       #   return build_return(200, {"upload_id" : book["upload_id"]})
       # return build_return(500, "something went wrong uploading spine for " + event["title"])
 
-  result["fileName"] = file_name
+  event["fileName"] = file_name
   result = db.add_book(event)
   result["already_uploaded"] = False
   #result object is {upload_id : string, already_uploaded: boolean}
