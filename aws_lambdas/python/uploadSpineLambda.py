@@ -2,7 +2,7 @@ from base64 import b64decode
 from cockroachdb_dao import CockroachDAO
 from io import BytesIO
 import os
-from s3_dao import upload_fileobj
+from s3_dao import upload_fileobj, delS3File
 import time
 
 db = CockroachDAO(os.getenv('DATABASE_URL'))
@@ -66,6 +66,17 @@ def saveB64TempFile(b64str):
   image.close()
   return fileName
 
+def create_and_upload_img(event):
+  extension = get_ext_from_b64(event["image"])
+  b64str = pad_b64_str(event["image"])
+  decoded = b64decode(b64str)
+  temp_file = BytesIO(decoded)
+  file_name = create_filename(event["title"], event["book_id"], extension)
+  
+  if(upload_fileobj(temp_file, object_name=file_name)):
+    return file_name
+  return False
+
 def lambda_handler(event, context):
   if(not verify_required_values(event)):
     return build_return(403, error_message)
@@ -73,28 +84,35 @@ def lambda_handler(event, context):
   if(not validate_username_authtoken(event["username"], event["authtoken"])):
     return build_return(403, error_message)
 
+  #b64 encodes 3 bytes of data in 4 char, so byte size will be 3/4
+  if(len(event["image"]) * 0.75 > MAX_UPLOAD_SIZE_BYTES):
+    return build_return(403, "File user attempted to upload is too large.")
+
+  file_name = create_and_upload_img(event)
+  if(not file_name):
+    return build_return(500, "failed to upload spine for " + event["title"])
+
+  if(event.has_key("replace_img") and event["replace_img"] and event.has_key("upload_id")):
+    book = db.get_book_by("upload_id", event["upload_id"])
+    delS3File(book["fileName"])
+    if(db.update_book_file_name(book["upload_id"], file_name)):
+      return build_return(200, {"upload_id" : book["upload_id"]})
+    return build_return(500, "something went wrong uploading spine for " + event["title"])
+
   existing_record = db.has_username_uploaded_book(event["username"], event["book_id"])
   if(existing_record):
-    #TODO: allow user to overwrite old spine upload
-    return build_return(403, "user has already uploaded a spine image for this book.")
-
-  extension = get_ext_from_b64(event["image"])
-  b64str = pad_b64_str(event["image"])
-  #b64 encodes 3 bytes of data in 4 char, so byte size will be 3/4
-  if(len(b64str) * 0.75 > MAX_UPLOAD_SIZE_BYTES): return build_return(403, "File user attempted to upload is too large.")
-  decoded = b64decode(b64str)
-  temp_file = BytesIO(decoded)
-  file_name = create_filename(event["title"], event["book_id"], extension)
-  result = False
-  
-  if(upload_fileobj(temp_file, object_name=file_name)):
-    event["fileName"] = file_name
-    result = db.add_book(event)
-
-  if(result):
-    #result object is {upload_id : id}
+    result = {
+      "upload_id" : existing_record["upload_id"],
+      "already_uploaded" : True,
+      "fileName" : existing_record["fileName"]
+    }
     return build_return(200, result)
-  return build_return(500, "failed to upload spine for " + event["title"])
+
+  result["fileName"] = file_name
+  result = db.add_book(event)
+  result["already_uploaded"] = False
+  #result object is {upload_id : string, already_uploaded: boolean}
+  return build_return(200, result)
 
 # zip -r lambda.zip .
 # aws lambda update-function-code --function-name uploadSpine --zip-file fileb://~/projects/bookshelf/aws_lambdas/python/lambda.zip
