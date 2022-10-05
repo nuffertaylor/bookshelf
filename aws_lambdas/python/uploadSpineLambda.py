@@ -6,6 +6,7 @@ from s3_dao import upload_fileobj
 import time
 
 db = CockroachDAO(os.getenv('DATABASE_URL'))
+MAX_UPLOAD_SIZE_BYTES = 6291456
 
 def create_filename(title, book_id, extension):
   t = ''.join(ch for ch in title if ch.isalnum())
@@ -79,6 +80,8 @@ def lambda_handler(event, context):
 
   extension = get_ext_from_b64(event["image"])
   b64str = pad_b64_str(event["image"])
+  #b64 encodes 3 bytes of data in 4 char, so byte size will be 3/4
+  if(len(b64str) * 0.75 > MAX_UPLOAD_SIZE_BYTES): return build_return(403, "File user attempted to upload is too large.")
   decoded = b64decode(b64str)
   temp_file = BytesIO(decoded)
   file_name = create_filename(event["title"], event["book_id"], extension)
