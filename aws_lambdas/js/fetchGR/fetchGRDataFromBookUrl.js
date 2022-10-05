@@ -32,7 +32,7 @@ function get_book_data_from_book_page(page, book_id){
     book_series = temp[0].trim() + ", #" + temp[1];
   }
   else book_series = "";
-  const gr_title = book_title + book_series;
+  const gr_title = book_title + " " + book_series;
   const author_name = page.querySelector(".authorName").querySelector('[itemprop="name"]').childNodes[0]._rawText.trim();
   const num_pages = remove_non_numeric_char_from_str(page.querySelector('[itemprop="numberOfPages"]').childNodes[0]._rawText.trim());
   const pub_date_string = page.querySelector('#details').querySelectorAll(".row")[1].childNodes[0]._rawText.trim().split("\n")[1].trim();
