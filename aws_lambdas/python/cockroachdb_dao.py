@@ -135,8 +135,12 @@ class CockroachDAO:
     return book_list
 
   def update_book_file_name(self, upload_id, fileName):
-    sql = "UPDATE bookshelf set fileName = %s where upload_id = %s"
+    sql = "UPDATE bookshelf SET fileName = %s WHERE upload_id = %s"
     return self.exec_statement(sql, (fileName, upload_id))
+  
+  def delete_book(self, upload_id):
+    sql = "DELETE FROM bookshelf WHERE upload_id = %s"
+    return self.exec_statement(sql, (upload_id,)) 
 
   def format_book_tuple(self, book_tuple):
     return {
