@@ -89,6 +89,16 @@ class CockroachDAO:
     """
     self.exec_statement(create_bookshelf_sql)
 
+  def create_visitor_table(self):
+    create_visitor_table_sql = """
+    CREATE TABLE IF NOT EXISTS visitors (
+      upload_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      ip STRING,
+      system_info STRING,
+      num_visits INT
+    );
+    """
+
   def add_book(self, book):
     sql = """
           INSERT INTO bookshelf 
