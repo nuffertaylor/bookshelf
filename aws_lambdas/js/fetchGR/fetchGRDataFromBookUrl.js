@@ -22,7 +22,11 @@ function remove_non_numeric_char_from_str(str){
 }
 
 function get_book_data_from_book_page(page, book_id){
-  const book_title = page.querySelector("#bookTitle").childNodes[0]._rawText.trim();
+  let book_title = "";
+  const book_title_el = page.querySelector("#bookTitle");
+  if(book_title_el && book_title_el.childNodes)
+    book_title = book_title_el.childNodes[0]._rawText.trim();
+  
   let book_series = page.querySelector("#bookSeries");
   // check if book is in series
   if(book_series.querySelector("a")) {
@@ -33,11 +37,33 @@ function get_book_data_from_book_page(page, book_id){
   }
   else book_series = "";
   const gr_title = book_title + " " + book_series;
-  const author_name = page.querySelector(".authorName").querySelector('[itemprop="name"]').childNodes[0]._rawText.trim();
-  const num_pages = remove_non_numeric_char_from_str(page.querySelector('[itemprop="numberOfPages"]').childNodes[0]._rawText.trim());
-  const pub_date_string = page.querySelector('#details').querySelectorAll(".row")[1].childNodes[0]._rawText.trim().split("\n")[1].trim();
-  const genre = page.querySelector(".bookPageGenreLink").childNodes[0]._rawText.trim();
-  console.log(genre);
+
+  //TODO: Handling for multiple authors (currently will only grab one)
+  let author_name = "";
+  const author_name_el = page.querySelector(".authorName");
+  if(author_name_el) {
+    const name_prop = author_name_el.querySelector('[itemprop="name"]');
+    if(name_prop && name_prop.childNodes) author_name = name_prop.childNodes[0]._rawText.trim();
+  }
+  
+  let num_pages = "";
+  const num_pages_el = page.querySelector('[itemprop="numberOfPages"]');
+  if(num_pages_el && num_pages_el.childNodes) {
+    num_pages = remove_non_numeric_char_from_str(page.querySelector('[itemprop="numberOfPages"]').childNodes[0]._rawText.trim());
+  }
+
+  let pub_date_string = ""
+  const details_element = page.querySelector('#details');
+  if(details_element) {
+    const rows = details_element.querySelectorAll(".row");
+    if(rows && rows.length > 1)
+      if(rows[1] && rows[1].childNodes) 
+        pub_date_string = rows[1].childNodes[0]._rawText.trim().split("\n")[1].trim();
+  }
+  let genre = "";
+  const genre_el = page.querySelector(".bookPageGenreLink");
+  if(genre_el && genre_el.childNodes)
+    genre = genre_el.childNodes[0]._rawText.trim();
   return {
     book_id : book_id,
     title : gr_title,
