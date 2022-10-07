@@ -92,13 +92,39 @@ class CockroachDAO:
   def create_visitor_table(self):
     create_visitor_table_sql = """
     CREATE TABLE IF NOT EXISTS visitors (
-      upload_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      visitor_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       ip STRING,
       os STRING,
       browser STRING,
+      timestamp INT,
       num_visits INT
     );
     """
+
+  def add_visitor(self, visitor):
+    sql = """
+      INSERT INTO visitors
+      (ip, os, browser, timestamp, num_visits)
+      VALUES (%s, %s, %s, %s, 1)
+    """
+    return self.exec_statement(sql, (visitor["ip"], visitor["os"], visitor["browser"], str(int(time.time()))))
+
+  def get_visitor_by_ip(self, ip):
+    sql = "SELECT * FROM visitors WHERE ip = %s"
+    visitor_tuple = self.exec_statement_fetch(sql, (ip,))
+    if(not visitor_tuple): return False
+    return {
+      "visitor_id" : visitor_tuple[0],
+      "ip" : visitor_tuple[1],
+      "os" : visitor_tuple[2],
+      "browser" : visitor_tuple[3],
+      "timestamp" : visitor_tuple[4],
+      "num_visits" : visitor_tuple[5]
+    }
+
+  def update_visit_count(self, visitor_id, prev_visits):
+    sql = "UPDATE visitors SET num_visits = %s WHERE visitor_id = %s"
+    return self.exec_statement(sql, (str(prev_visits + 1), visitor_id))
 
   def add_book(self, book):
     sql = """
