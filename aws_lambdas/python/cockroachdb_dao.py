@@ -100,6 +100,8 @@ class CockroachDAO:
       num_visits INT
     );
     """
+    self.exec_statement(create_visitor_table_sql)
+
 
   def add_visitor(self, visitor):
     sql = """
@@ -113,6 +115,7 @@ class CockroachDAO:
     sql = "SELECT * FROM visitors WHERE ip = %s"
     visitor_tuple = self.exec_statement_fetch(sql, (ip,))
     if(not visitor_tuple): return False
+    visitor_tuple = visitor_tuple[0]
     return {
       "visitor_id" : visitor_tuple[0],
       "ip" : visitor_tuple[1],
