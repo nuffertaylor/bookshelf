@@ -94,7 +94,8 @@ class CockroachDAO:
     CREATE TABLE IF NOT EXISTS visitors (
       upload_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       ip STRING,
-      system_info STRING,
+      os STRING,
+      browser STRING,
       num_visits INT
     );
     """
