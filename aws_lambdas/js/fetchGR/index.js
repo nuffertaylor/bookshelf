@@ -9,6 +9,15 @@ export const handler = async (event) => {
   return response;
 };
 
+//test locally via "node index.js"
+/*
+const res = await handler({url :
+  //insert test url here
+  "https://www.goodreads.com/book/show/869923.Banker_To_The_Poor"
+});
+console.log(res);
+*/
+
 //aws cli command to upload:
 /*
 zip -r lambda.zip .
