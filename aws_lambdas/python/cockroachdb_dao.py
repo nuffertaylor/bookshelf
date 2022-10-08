@@ -126,8 +126,8 @@ class CockroachDAO:
     }
 
   def update_visit_count(self, visitor_id, prev_visits):
-    sql = "UPDATE visitors SET num_visits = %s WHERE visitor_id = %s"
-    return self.exec_statement(sql, (str(prev_visits + 1), visitor_id))
+    sql = "UPDATE visitors SET num_visits = %s, timestamp = %s WHERE visitor_id = %s"
+    return self.exec_statement(sql, (str(prev_visits + 1), str(int(time.time())), visitor_id))
 
   def add_book(self, book):
     sql = """
