@@ -33,7 +33,8 @@ function get_book_data_from_book_page(page, book_id){
     book_series = " " + book_series.querySelector("a").childNodes[0]._rawText.trim();
     //add a comma between the number and the series number
     const temp = book_series.split('#');
-    book_series = temp[0].trim() + ", #" + temp[1];
+    if(temp.length > 1) book_series = temp[0].trim() + ", #" + temp[1];
+    else book_series = temp[0].trim();
   }
   else book_series = "";
   const gr_title = book_title + " " + book_series;
