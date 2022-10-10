@@ -62,6 +62,8 @@ def which_books_found(bookList, foundBooks):
   return found, unfound
 
 def getGRbookshelf(userid, shelfname):
+  #TODO: Do verification on userid. Ensure it is only numbers.
+  #TODO: If it isn't only numbers, it may be a profile URL. Edit the input and see if we can get a valid user_id this way. If not, return fail.
   books = get_books_from_shelf(userid, shelfname)
   print("looking for " + str(len(books)) + " books")
   batch = db.get_book_batch(books)
