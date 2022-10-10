@@ -36,6 +36,9 @@ class Bookshelf:
       if d == h: continue
       elif d == w: continue
       else: l = d
+          
+    #maybe it's a square book, so its height and width are the same. Either way, we don't really use l. so just set it so it isn't null
+    if(l is None): l=h
 
     #there could be a case where this is incorrect, but that's a wacky book.
     return float(h), float(w), float(l)
