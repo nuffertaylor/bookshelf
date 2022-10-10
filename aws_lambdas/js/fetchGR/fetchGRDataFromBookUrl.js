@@ -53,6 +53,7 @@ function get_book_data_from_book_page(page, book_id){
     num_pages = remove_non_numeric_char_from_str(page.querySelector('[itemprop="numberOfPages"]').childNodes[0]._rawText.trim());
   }
 
+  //TODO: This successfully gets the publication date of the provided edition. But more useful to the user is the original publication date.
   let pub_date_string = ""
   const details_element = page.querySelector('#details');
   if(details_element) {
