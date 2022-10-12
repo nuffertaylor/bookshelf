@@ -16,11 +16,6 @@ async function fetch_page(url){
   return body;
 }
 
-function remove_non_numeric_char_from_str(str){
-  if(str && typeof str === "string") return str.replace(/\D/g,'');
-  return null;
-}
-
 function get_book_data_from_book_page(page, book_id){
   let book_title = "";
   const book_title_el = page.querySelector("#bookTitle");
@@ -75,11 +70,13 @@ function get_book_data_from_book_page(page, book_id){
     genre : genre
   };
 };
+
 const remove_query_string = (url) => { return url.split('?')[0]; };
 const remove_text_title = (url) => { return url.split('-')[0]; };
+const remove_non_numeric_char_from_str = (str) => { return str.replace(/\D/g,''); };
 
 const main = async function (url){
-  if(!url) return {};
+  if(!url || typeof str !== "string") return {};
   url = remove_query_string(url);
   url = remove_text_title(url);
   const book_id = remove_non_numeric_char_from_str(url);
