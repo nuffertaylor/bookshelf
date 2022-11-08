@@ -9,6 +9,9 @@ from aws_lambdas.python.dynamodb_dao import getBookBatch, getBook
 import math
 import colorsys
 
+#TODO: Generate fake spines - get that to work
+#TODO: Generating multiple shelves is borkedc on AWS, fix that
+
 class Bookshelf:
   def __init__(self, imageOpener, bookshelfFileName, shelfWidthInches, shelfWidthPixels, shelfBottoms, shelfLeft):
     self.imageOpener = imageOpener
