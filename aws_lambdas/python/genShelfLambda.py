@@ -20,8 +20,8 @@ class S3ImageOpener:
 def lambda_handler(event, context):
   sortedBooks = event["bookList"]
   bookshelf = Bookshelf(S3ImageOpener, "bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
-  bookshelf.fillShelf(sortedBooks)
   os.chdir("/tmp")
+  bookshelf.fillShelf(sortedBooks)
   fileName = rand_str(10) + ".jpg"
   bookshelf.saveShelf(fileName)
   if(upload_file(fileName)):
