@@ -102,6 +102,30 @@ class CockroachDAO:
     """
     self.exec_statement(create_visitor_table_sql)
 
+  def create_shelf_bgs_table(self):
+    create_shelf_bgs_table_sql = """
+    CREATE TABLE IF NOT EXISTS shelf_bgs (
+      bg_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      submitter STRING NOT NULL,
+      filename STRING UNIQUE NOT NULL,
+      width_inches INT NOT NULL,
+      width_pixels INT NOT NULL,
+      shelf_bottoms INT[],
+      shelf_left INT,
+      timestamp INT
+    );
+    """
+    self.exec_statement(create_shelf_bgs_table_sql)
+
+  def add_shelf_bg(self, submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left):
+    self.create_shelf_bgs_table()
+    sql = """
+      INSERT INTO shelf_bgs
+      (submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left, timestamp)
+      VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """
+    return self.exec_statement(sql, (submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left, str(int(time.time()))))
+
 
   def add_visitor(self, visitor):
     sql = """
