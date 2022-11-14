@@ -117,6 +117,7 @@ class CockroachDAO:
     """
     self.exec_statement(create_shelf_bgs_table_sql)
 
+  #TODO: test
   def add_shelf_bg(self, submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left):
     self.create_shelf_bgs_table()
     sql = """
@@ -126,6 +127,9 @@ class CockroachDAO:
     """
     return self.exec_statement(sql, (submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left, str(int(time.time()))))
 
+  def get_all_shelf_bgs(self):
+    sql = "SELECT * FROM shelf_bgs"
+    return self.exec_statement_fetch(sql)
 
   def add_visitor(self, visitor):
     sql = """
