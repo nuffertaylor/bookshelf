@@ -146,6 +146,20 @@ class CockroachDAO:
       formattedRes.append(self.format_shelf_bg_tuple(x))
     return formattedRes
 
+  def get_shelf_bg_by_bg_id(self, bg_id):
+    sql = "SELECT * FROM shelf_bgs WHERE bg_id = %s"
+    res = self.exec_statement_fetch(sql, (bg_id,))
+    if(len(res) > 0):
+      return self.format_shelf_bg_tuple(res[0])
+    return False
+
+  def get_shelf_bg_by_filename(self, filename):
+    sql = "SELECT * FROM shelf_bgs WHERE filename = %s"
+    res = self.exec_statement_fetch(sql, (filename,))
+    if(len(res) > 0):
+      return self.format_shelf_bg_tuple(res[0])
+    return False
+
   def add_visitor(self, visitor):
     sql = """
       INSERT INTO visitors
