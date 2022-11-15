@@ -128,7 +128,20 @@ class CockroachDAO:
 
   def get_all_shelf_bgs(self):
     sql = "SELECT * FROM shelf_bgs"
-    return self.exec_statement_fetch(sql)
+    res = self.exec_statement_fetch(sql)
+    formattedRes = []
+    for x in res:
+      formattedRes.append({
+        "bg_id" : x[0],
+        "submitter" : x[1],
+        "filename" : x[2],
+        "width_inches" : x[3],
+        "width_pixels" : x[4],
+        "shelf_bottoms" : x[5],
+        "shelf_left" : x[6],
+        "timestamp" : x[7]
+      })
+    return formattedRes
 
   def add_visitor(self, visitor):
     sql = """
