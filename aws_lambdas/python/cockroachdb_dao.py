@@ -116,6 +116,18 @@ class CockroachDAO:
     );
     """
     self.exec_statement(create_shelf_bgs_table_sql)
+  
+  def format_shelf_bg_tuple(self, x):
+    return {
+        "bg_id" : x[0],
+        "submitter" : x[1],
+        "filename" : x[2],
+        "width_inches" : x[3],
+        "width_pixels" : x[4],
+        "shelf_bottoms" : x[5],
+        "shelf_left" : x[6],
+        "timestamp" : x[7]
+      }
 
   def add_shelf_bg(self, submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left):
     self.create_shelf_bgs_table()
@@ -131,16 +143,7 @@ class CockroachDAO:
     res = self.exec_statement_fetch(sql)
     formattedRes = []
     for x in res:
-      formattedRes.append({
-        "bg_id" : x[0],
-        "submitter" : x[1],
-        "filename" : x[2],
-        "width_inches" : x[3],
-        "width_pixels" : x[4],
-        "shelf_bottoms" : x[5],
-        "shelf_left" : x[6],
-        "timestamp" : x[7]
-      })
+      formattedRes.append(self.format_shelf_bg_tuple(x))
     return formattedRes
 
   def add_visitor(self, visitor):
