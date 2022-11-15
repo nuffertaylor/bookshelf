@@ -117,7 +117,6 @@ class CockroachDAO:
     """
     self.exec_statement(create_shelf_bgs_table_sql)
 
-  #TODO: test
   def add_shelf_bg(self, submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left):
     self.create_shelf_bgs_table()
     sql = """
