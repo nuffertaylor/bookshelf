@@ -34,9 +34,7 @@ class CockroachDAO:
     except Exception as ex:
       template = "An exception of type {0} occurred. Arguments:\n{1!r}"
       message = template.format(type(ex).__name__, ex.args)
-      failed_sql = cur.mogrify(stmt, args)
       print(message)
-      print("Failed query: \n" + failed_sql)
       return False
 
 
@@ -141,6 +139,7 @@ class CockroachDAO:
   def get_all_shelf_bgs(self):
     sql = "SELECT * FROM shelf_bgs"
     res = self.exec_statement_fetch(sql)
+    if(not res): return False
     formattedRes = []
     for x in res:
       formattedRes.append(self.format_shelf_bg_tuple(x))
@@ -149,6 +148,7 @@ class CockroachDAO:
   def get_shelf_bg_by_bg_id(self, bg_id):
     sql = "SELECT * FROM shelf_bgs WHERE bg_id = %s"
     res = self.exec_statement_fetch(sql, (bg_id,))
+    if(not res): return False
     if(len(res) > 0):
       return self.format_shelf_bg_tuple(res[0])
     return False
@@ -156,6 +156,7 @@ class CockroachDAO:
   def get_shelf_bg_by_filename(self, filename):
     sql = "SELECT * FROM shelf_bgs WHERE filename = %s"
     res = self.exec_statement_fetch(sql, (filename,))
+    if(not res): return False
     if(len(res) > 0):
       return self.format_shelf_bg_tuple(res[0])
     return False

@@ -7,9 +7,9 @@ def httpResult(statusCode, body):
 
 def lambda_handler(event, context):
   results = None
-  if("bg_id" in event.keys()):
+  if("bg_id" in event.keys() and event["bg_id"]):
     results = db.get_shelf_bg_by_bg_id(event["bg_id"])
-  elif("filename" in event.keys()):
+  elif("filename" in event.keys() and event["filename"]):
     results = db.get_shelf_bg_by_filename(event["filename"])
   else:
     results = db.get_all_shelf_bgs()
