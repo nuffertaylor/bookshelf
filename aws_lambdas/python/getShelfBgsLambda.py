@@ -13,6 +13,8 @@ def lambda_handler(event, context):
     results = db.get_shelf_bg_by_filename(event["filename"])
   else:
     results = db.get_all_shelf_bgs()
-  return(200, results)
+  if(results):
+    return(200, results)
+  return(200, [])
 
 # aws lambda update-function-code --function-name getShelfBgs --zip-file fileb://~/projects/bookshelf/aws_lambdas/python/lambda.zip
