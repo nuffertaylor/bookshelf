@@ -110,7 +110,8 @@ class CockroachDAO:
       width_pixels INT NOT NULL,
       shelf_bottoms INT[],
       shelf_left INT,
-      timestamp INT
+      timestamp INT,
+      title STRING
     );
     """
     self.exec_statement(create_shelf_bgs_table_sql)
@@ -124,17 +125,18 @@ class CockroachDAO:
         "width_pixels" : x[4],
         "shelf_bottoms" : x[5],
         "shelf_left" : x[6],
-        "timestamp" : x[7]
+        "timestamp" : x[7],
+        "title" : x[8]
       }
 
-  def add_shelf_bg(self, submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left):
+  def add_shelf_bg(self, submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left, title):
     self.create_shelf_bgs_table()
     sql = """
       INSERT INTO shelf_bgs
-      (submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left, timestamp)
-      VALUES (%s, %s, %s, %s, %s, %s, %s)
+      (submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left, timestamp, title)
+      VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     """
-    return self.exec_statement(sql, (submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left, str(int(time.time()))))
+    return self.exec_statement(sql, (submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left, str(int(time.time())), title))
 
   def get_all_shelf_bgs(self):
     sql = "SELECT * FROM shelf_bgs"
