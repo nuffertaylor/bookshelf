@@ -5,6 +5,12 @@ class CockroachDAO:
   def __init__(self, db_url):
     self.conn = psycopg2.connect(db_url, sslrootcert="./root.crt")
 
+  def __del__(self):
+    self.disconnect()
+
+  def disconnect(self):
+    self.conn.close()
+
   def exec_statement(self, stmt, args=None):
     try:
       with self.conn.cursor() as cur:
@@ -30,7 +36,9 @@ class CockroachDAO:
         else:
           cur.execute(stmt)
         self.conn.commit()
-        return cur.fetchall()
+        if cur.pgresult_ptr is not None:
+          return cur.fetchall()
+        return False
     except Exception as ex:
       template = "An exception of type {0} occurred. Arguments:\n{1!r}"
       message = template.format(type(ex).__name__, ex.args)
