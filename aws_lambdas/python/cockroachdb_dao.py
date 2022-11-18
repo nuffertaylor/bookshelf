@@ -1,5 +1,6 @@
 import psycopg2
 import time
+import uuid
 
 class CockroachDAO:
   def __init__(self, db_url):
@@ -23,9 +24,7 @@ class CockroachDAO:
     except Exception as ex:
       template = "An exception of type {0} occurred. Arguments:\n{1!r}"
       message = template.format(type(ex).__name__, ex.args)
-      failed_sql = cur.mogrify(stmt, args)
       print(message)
-      print("Failed query: \n" + failed_sql)
       return False
 
   def exec_statement_fetch(self, stmt, args=None):
@@ -45,6 +44,12 @@ class CockroachDAO:
       print(message)
       return False
 
+  def validate_uuid(self, uuid_to_test):
+    try:
+      uuid.UUID(uuid_to_test)
+      return True
+    except:
+      return False
 
   def create_bookshelf_users_table(self):
     create_bookshelf_users_sql = """
@@ -156,6 +161,7 @@ class CockroachDAO:
     return formattedRes
 
   def get_shelf_bg_by_bg_id(self, bg_id):
+    if(not self.validate_uuid(bg_id)): return False
     sql = "SELECT * FROM shelf_bgs WHERE bg_id = %s"
     res = self.exec_statement_fetch(sql, (bg_id,))
     if(not res): return False
@@ -194,6 +200,7 @@ class CockroachDAO:
     }
 
   def update_visit_count(self, visitor_id, prev_visits):
+    if(not self.validate_uuid(visitor_id)): return False
     sql = "UPDATE visitors SET num_visits = %s, timestamp = %s WHERE visitor_id = %s"
     return self.exec_statement(sql, (str(prev_visits + 1), str(int(time.time())), visitor_id))
 
@@ -210,6 +217,7 @@ class CockroachDAO:
     return {"upload_id" : u_id}
 
   def get_book_by(self, key, value):
+    if(key == "upload_id" and not self.validate_uuid(value)): return False
     sql = "SELECT * FROM bookshelf WHERE " + key + " = %s"
     res_list = self.exec_statement_fetch(sql, (value,))
     if(len(res_list) > 0): 
@@ -243,10 +251,12 @@ class CockroachDAO:
     return book_list
 
   def update_book_file_name(self, upload_id, fileName):
+    if(not self.validate_uuid(upload_id)): return False
     sql = "UPDATE bookshelf SET fileName = %s WHERE upload_id = %s"
     return self.exec_statement(sql, (fileName, upload_id))
   
   def delete_book(self, upload_id):
+    if(not self.validate_uuid(upload_id)): return False
     sql = "DELETE FROM bookshelf WHERE upload_id = %s"
     return self.exec_statement(sql, (upload_id,)) 
 
@@ -293,9 +303,11 @@ class CockroachDAO:
   #todo: dynamic function that updates all changed values in a book object.
   def update_book(self, book):
     if("upload_id" not in book.keys()): return False
+    if(not self.validate_uuid(book["upload_id"])): return False
     return False
 
   def update_book_col(self, upload_id, col, value):
+    if(not self.validate_uuid(upload_id)): return False
     sql = "UPDATE bookshelf set " + col + " = %s WHERE upload_id = %s"
     return self.exec_statement(sql, (value, upload_id))
 
@@ -408,16 +420,20 @@ class CockroachDAO:
     return self.format_shelf_image_tuple_list(res)
 
   def delete_shelf_image(self, shelf_id):
+    if(not self.validate_uuid(shelf_id)): return False
     sql = "DELETE FROM shelf_images WHERE shelf_id = %s"
     return self.exec_statement(sql, (shelf_id,))
 
   def flag_image(self, upload_id):
+    if(not self.validate_uuid(upload_id)): return False
     pass
 
   def upvote_image(self, upload_id):
+    if(not self.validate_uuid(upload_id)): return False
     pass
 
   def downvote_image(self, upload_id):
+    if(not self.validate_uuid(upload_id)): return False
     pass
 
 # aws lambda update-function-configuration --function-name lambda-function-name --environment "Variables={DATABASE_URL=url}"
