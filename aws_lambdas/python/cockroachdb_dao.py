@@ -73,7 +73,10 @@ class CockroachDAO:
       shelf_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       filename STRING UNIQUE NOT NULL,
       timestamp INT NOT NULL,
-      owner STRING NULL
+      owner STRING NULL,
+      bookshelf_name STRING NULL,
+      gr_shelf_name STRING NULL,
+      gr_user_id STRING NULL
     );
     """
     self.exec_statement(create_shelf_image_sql)
@@ -283,7 +286,10 @@ class CockroachDAO:
       "shelf_id" : shelf_image_tuple[0],
       "filename" : shelf_image_tuple[1],
       "timestamp" : shelf_image_tuple[2],
-      "owner" : shelf_image_tuple[3]
+      "owner" : shelf_image_tuple[3],
+      "bookshelf_name" : shelf_image_tuple[4],
+      "gr_shelf_name" : shelf_image_tuple[5],
+      "gr_user_id" : shelf_image_tuple[6]
     }
 
   def format_shelf_image_tuple_list(self, si_list):
@@ -311,9 +317,9 @@ class CockroachDAO:
     sql = "UPDATE bookshelf set " + col + " = %s WHERE upload_id = %s"
     return self.exec_statement(sql, (value, upload_id))
 
-  def add_shelf_image(self, filename):
-    sql = "INSERT INTO shelf_images (filename, timestamp) VALUES (%s, %s)"
-    self.exec_statement(sql, (filename, str(int(time.time()))))
+  def add_shelf_image(self, filename, gr_shelf_name, gr_user_id):
+    sql = "INSERT INTO shelf_images (filename, timestamp, gr_shelf_name, gr_user_id) VALUES (%s, %s, %s, %s)"
+    self.exec_statement(sql, (filename, str(int(time.time())), gr_shelf_name, gr_user_id))
 
   def add_shelf_images(self, filenameList):
     for filename in filenameList:
@@ -400,9 +406,9 @@ class CockroachDAO:
       books.append(self.format_book_tuple(r))
     return books
 
-  def set_shelf_image_owner(self, filename, username):
-    sql = "UPDATE shelf_images SET owner = %s where filename = %s"
-    return self.exec_statement(sql, (username, filename))
+  def set_shelf_image_owner(self, filename, username, bookshelf_name):
+    sql = "UPDATE shelf_images SET owner = %s, bookshelf_name = %s where filename = %s"
+    return self.exec_statement(sql, (username, bookshelf_name, filename))
 
   def get_shelf_images_by_owner(self, owner):
     sql = "SELECT * FROM shelf_images WHERE OWNER = %s"
