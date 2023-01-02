@@ -410,6 +410,11 @@ class CockroachDAO:
     sql = "UPDATE shelf_images SET owner = %s, bookshelf_name = %s where filename = %s"
     return self.exec_statement(sql, (username, bookshelf_name, filename))
 
+  def get_shelf_image_by_filename(self, filename):
+    sql = "SELECT * FROM shelf_images WHERE filename = %s LIMIT 1"
+    res = self.exec_statement_fetch(sql, (filename,))
+    return self.format_shelf_image_tuple_list(res)[0]
+
   def get_shelf_images_by_owner(self, owner):
     sql = "SELECT * FROM shelf_images WHERE OWNER = %s"
     res = self.exec_statement_fetch(sql, (owner,))
