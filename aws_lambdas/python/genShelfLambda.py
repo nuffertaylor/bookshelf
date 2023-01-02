@@ -22,12 +22,12 @@ def lambda_handler(event, context):
   bookshelf = Bookshelf(S3ImageOpener, "bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)
   os.chdir("/tmp")
   bookshelf.fillShelf(sortedBooks)
-  fileName = rand_str(10) + ".jpg"
-  bookshelf.saveShelf(fileName)
-  gr_shelf_name = event["gr_shelf_name"] if event["gr_shelf_name"] else ""
-  gr_user_id = event["gr_user_id"] if event["gr_user_id"] else ""
-  if(upload_file(fileName)):
-    db.add_shelf_image(fileName, gr_shelf_name, gr_user_id)
-    image_url = "https://bookshelf-spines.s3.amazonaws.com/" + fileName
-    return build_return(200, image_url)
+  filename = rand_str(10) + ".jpg"
+  bookshelf.saveShelf(filename)
+  if("gr_shelf_name" not in event.keys()): event["gr_shelf_name"] = ""
+  if("gr_user_id" not in event.keys()): event["gr_user_id"] = ""
+  if(upload_file(filename)):
+    db.add_shelf_image(filename, event["gr_shelf_name"], event["gr_user_id"])
+    shelf_image = db.get_shelf_image_by_filename(filename)
+    return build_return(200, shelf_image)
   return build_return(400, "bookshelf creation failed")
