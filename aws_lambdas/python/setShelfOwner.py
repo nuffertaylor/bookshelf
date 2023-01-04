@@ -17,6 +17,8 @@ def lambda_handler(event, context):
     return httpResult(403, "Request Failed, shelf already claimed by different user.")
   if(not db.validate_username_authtoken(event["username"], event["authtoken"])):
     return httpResult(403, "Request Failed, invalid authtoken")
+  if("delete_owner" in event.keys() and event["delete_owner"]):
+    event["username"] = ""
   if(db.set_shelf_image_owner(event["filename"], event["username"], event["bookshelf_name"])):
     shelf_image["owner"] = event["username"]
     shelf_image["bookshelf_name"] = event["bookshelf_name"]
