@@ -3,6 +3,7 @@ from cockroachdb_dao import CockroachDAO
 from io import BytesIO
 import os
 import random
+import re
 from s3_dao import upload_fileobj, delS3File
 import time
 
@@ -14,7 +15,8 @@ def rand_str(num_char):
 
 def create_filename(title, book_id, extension):
   t = ''.join(ch for ch in title if ch.isalnum())
-  return t + "-" + book_id +  "-" + rand_str(10) + "." + extension
+  t = re.sub(r'[^\x00-\x7f]',r'', t)
+  return t + "-" + str(book_id) +  "-" + rand_str(10) + "." + extension
 
 def get_ext_from_b64(b64str):
   a = b64str.split(';')[0]
