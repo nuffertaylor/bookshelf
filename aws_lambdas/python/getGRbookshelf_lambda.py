@@ -36,7 +36,7 @@ def get_books_from_shelf(userid, shelfname):
               "author" : entry["author_name"],
               "isbn" : entry["isbn"],
               "isbn13" : convertISBNtoISBN13(entry["isbn"]),
-              "user_read_at" : entry["user_read_at"],
+              "user_read_at" : entry["user_read_at"], #this is not giving me a consistent result. Might need a different approach.
               "average_rating" : entry["average_rating"],
               "user_rating" : entry["user_rating"]
               }
@@ -60,10 +60,12 @@ def which_books_found(bookList, foundBooks):
     if(not foundBool):
       unfound.append(b)
   return found, unfound
+  
+def getGRBooksForUserByYear(userid, year):
+  books = get_books_from_shelf(userid, "read")
+  print(books)
 
 def getGRbookshelf(userid, shelfname):
-  #TODO: Do verification on userid. Ensure it is only numbers.
-  #TODO: If it isn't only numbers, it may be a profile URL. Edit the input and see if we can get a valid user_id this way. If not, return fail.
   books = get_books_from_shelf(userid, shelfname)
   print("looking for " + str(len(books)) + " books")
   batch = db.get_book_batch(books)
@@ -75,9 +77,15 @@ def getGRbookshelf(userid, shelfname):
   }
   
 def lambda_handler(event, context):
+  body = None
+  if("year" in event.keys()):
+     body = getGRBooksForUserByYear(event["userid"], event["year"])
+     return
+  else:
+    body = getGRbookshelf(event["userid"], event["shelfname"])
   return {
     'statusCode': 200,
-    'body': getGRbookshelf(event["userid"], event["shelfname"])
+    'body': body
   }
 
 # zip -r lambda.zip .
