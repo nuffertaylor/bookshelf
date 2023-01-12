@@ -90,13 +90,16 @@ def lambda_handler(event, context):
   if(not validate_username_authtoken(event["username"], event["authtoken"])):
     return build_return(403, error_message)
 
-  #b64 encodes 3 bytes of data in 4 char, so byte size will be 3/4
-  if(len(event["image"]) * 0.75 > MAX_UPLOAD_SIZE_BYTES):
-    return build_return(403, "File user attempted to upload is too large.")
+  keep_upload = ("keep_upload" in event and event["keep_upload"])
 
-  file_name = create_and_upload_img(event)
-  if(not file_name):
-    return build_return(500, "failed to upload spine for " + event["title"])
+  if(not keep_upload):
+    #b64 encodes 3 bytes of data in 4 char, so byte size will be 3/4
+    if(len(event["image"]) * 0.75 > MAX_UPLOAD_SIZE_BYTES):
+      return build_return(403, "File user attempted to upload is too large.")
+
+    file_name = create_and_upload_img(event)
+    if(not file_name):
+      return build_return(500, "failed to upload spine for " + event["title"])
 
   existing_record = db.has_username_uploaded_book(event["username"], event["book_id"])
   if(existing_record):
@@ -107,17 +110,18 @@ def lambda_handler(event, context):
         "fileName" : existing_record["fileName"]
       }
       return build_return(200, result)
-    #only delete previous rows for replacement image if we've 
-    #a) authenticated the user (done above)
-    #b) verified the user owns the row we're deleting (done in this if statement)
+    #if this is a replace request:
     if("replace_img" in event and event["replace_img"] and "upload_id" in event):
       book = db.get_book_by("upload_id", event["upload_id"])
-      delS3File(book["fileName"])
+      #if keep_upload, use previous file and domcolor
+      if(keep_upload):
+        file_name = book["fileName"]
+        event["domColor"] = book["domColor"]
+      #else it's a new image upload
+      else:
+        delS3File(book["fileName"])
+      #delete old row, make a new one with changed data
       db.delete_book(event["upload_id"])
-      #rather than just changing the file attr, we'll just use the data to create a new row, in case a piece of other data has changed (like the dimensions)
-      # if(db.update_book_file_name(book["upload_id"], file_name)):
-      #   return build_return(200, {"upload_id" : book["upload_id"]})
-      # return build_return(500, "something went wrong uploading spine for " + event["title"])
 
   event["fileName"] = file_name
   result = db.add_book(event)
