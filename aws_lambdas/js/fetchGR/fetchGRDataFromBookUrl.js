@@ -1,5 +1,6 @@
 import got from 'got';
 import { parse as parse_html} from 'node-html-parser';
+import { Curl } from "node-libcurl";
 
 process.on('uncaughtException', function (err) {
   console.log(err);
@@ -16,6 +17,7 @@ async function fetch_page(url){
   return body;
 }
 
+//goodreads has changed their site, so this function is now deprecated.
 function get_book_data_from_book_page(page, book_id){
   let book_title = "";
   const book_title_el = page.querySelector("#bookTitle");
@@ -70,6 +72,11 @@ function get_book_data_from_book_page(page, book_id){
     genre : genre
   };
 }
+
+const get_book_data_from_page = (page) => {
+  console.log(page.title);
+}
+
 const get_last_sub_dir_from_url = (url) => {
   let res = url.split('/').at(-1);
   if(res === '') res = url.split('/').at(-2);
@@ -88,10 +95,37 @@ const main = async function (url){
   const book_id = remove_non_numeric_char_from_str(url);
   if(!book_id) return {};
   const book_url = get_book_url_from_book_id(book_id);
-  const page_HTML = await fetch_page(book_url);
-  const page = parse_html(page_HTML);
-  const book = get_book_data_from_book_page(page, book_id);
-  return book;
+
+
+  const curlTest = new Curl();
+
+  curlTest.setOpt(Curl.option.URL, book_url);
+  const terminate = curlTest.close.bind(curlTest);
+
+  curlTest.on("end", function (statusCode, data, headers) {
+    // console.info("Status code " + statusCode);
+    // console.info("***");
+    // console.info("Our response: " + data);
+    // console.info("***");
+    // console.info("Length: " + data.length);
+    // console.info("***");
+    // console.info("Total time taken: " + this.getInfo("TOTAL_TIME"));
+    const page = parse_html(data);
+    console.log(page);
+    const book = get_book_data_from_page(page);
+
+    this.close();
+  });
+  curlTest.on("error", terminate);
+
+  curlTest.perform();
+
+
+  
+  // const page_HTML = await fetch_page(book_url);
+  
+  // const book = get_book_data_from_page(page);
+  // return book;
 };
 
 export default main;
