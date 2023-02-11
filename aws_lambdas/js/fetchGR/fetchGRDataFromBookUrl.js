@@ -74,7 +74,9 @@ function get_book_data_from_book_page(page, book_id){
 }
 
 const get_book_data_from_page = (page) => {
-  console.log(page.title);
+  // console.log(page.title);
+  console.log(page.querySelector('title').innerHTML);
+
 }
 
 const get_last_sub_dir_from_url = (url) => {
@@ -104,15 +106,14 @@ const main = async function (url){
 
   curlTest.on("end", function (statusCode, data, headers) {
     // console.info("Status code " + statusCode);
-    // console.info("***");
-    // console.info("Our response: " + data);
+    console.info("***");
+    console.info("Our response: " + data);
     // console.info("***");
     // console.info("Length: " + data.length);
     // console.info("***");
     // console.info("Total time taken: " + this.getInfo("TOTAL_TIME"));
-    const page = parse_html(data);
-    console.log(page);
-    const book = get_book_data_from_page(page);
+    // const page = parse_html(data);
+    // const book = get_book_data_from_page(page);
 
     this.close();
   });
