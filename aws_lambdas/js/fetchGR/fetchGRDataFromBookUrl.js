@@ -98,6 +98,36 @@ const main = async function (url){
   if(!book_id) return {};
   const book_url = get_book_url_from_book_id(book_id);
 
+  const find_json_in_str = (str) => {
+    let found_json = [];
+    let brace_stack = [];
+    for(let i = 0; i < str.length; i++){
+      if(str.charAt(i) === '{' && str.charAt(i+1) === '"') {
+        //push the position of the brace
+        brace_stack.push(i)
+      }
+      else if(str.charAt(i) === '}') {
+        if(brace_stack.length > 0){
+          let prev_pos = brace_stack.pop();
+          if(brace_stack.length === 0) {
+            //we have a complete json element! let's store it
+            found_json.push(str.substr(prev_pos, i+1));
+          }
+        }
+        //if the length of brace_stack IS 0, there's a brace mismatch. but for now we'll just ignore that 
+      }
+    }
+    return found_json;
+  }
+
+  const parse_list_of_json = (json_list) => {
+    let parsed_json = []
+    for(const j of json_list){
+      parsed_json.push(JSON.parse(j));
+    }
+    return parsed_json;
+  }
+
 
   const curlTest = new Curl();
 
@@ -105,9 +135,13 @@ const main = async function (url){
   const terminate = curlTest.close.bind(curlTest);
 
   curlTest.on("end", function (statusCode, data, headers) {
+    const json_list = find_json_in_str(data);
+    // const parsed_json = parse_list_of_json(json_list)
+    console.log(json_list[0]);
+    // for(let i = 0 ; i < 20; i++) console.log(firstPart[i])
     // console.info("Status code " + statusCode);
-    console.info("***");
-    console.info("Our response: " + data);
+    // console.info("***");
+    // console.info("Our response: " + data);
     // console.info("***");
     // console.info("Length: " + data.length);
     // console.info("***");
