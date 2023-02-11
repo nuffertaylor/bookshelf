@@ -12,7 +12,7 @@ export const handler = async (event) => {
 //test locally via "node index.js"
 const res = await handler({url :
   //insert test url here
-  "https://www.goodreads.com/book/show/869923.Banker_To_The_Poor"
+  "https://www.goodreads.com/book/show/11557.Swan_Song"
 });
 console.log(res);
 
