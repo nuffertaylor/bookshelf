@@ -1,18 +1,13 @@
 import main from "./fetchGRDataFromBookUrl.js";
 
 export const handler = async (event) => {
-  const book = await main(event.url);
-  const response = {
-    statusCode: 200,
-    body: book
-  };
-  return response;
+  return await main(event.url);
 };
 
 //test locally via "node index.js"
 const res = await handler({url :
   //insert test url here
-  "https://www.goodreads.com/book/show/11557.Swan_Song"
+  "https://www.goodreads.com/book/show/55728061-and-then-she-vanished"
 });
 console.log(res);
 

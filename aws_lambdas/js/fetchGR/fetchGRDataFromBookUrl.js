@@ -1,6 +1,4 @@
-import got from 'got';
-import { parse as parse_html} from 'node-html-parser';
-import { Curl } from "node-libcurl";
+import { curly } from "node-libcurl";
 
 process.on('uncaughtException', function (err) {
   console.log(err);
@@ -11,13 +9,8 @@ function get_book_url_from_book_id(book_id){
   return URL_PREFIX + book_id;
 }
 
-async function fetch_page(url){
-  const response = await got.get(url);
-  const body = response.rawBody;
-  return body;
-}
-
-//goodreads has changed their site, so this function is now deprecated.
+//@DEPRECATED
+//As of Jan 2023, The Goodreads site change has made this function useless.
 function get_book_data_from_book_page(page, book_id){
   let book_title = "";
   const book_title_el = page.querySelector("#bookTitle");
@@ -73,10 +66,34 @@ function get_book_data_from_book_page(page, book_id){
   };
 }
 
-const get_book_data_from_page = (page) => {
-  // console.log(page.title);
-  console.log(page.querySelector('title').innerHTML);
+const find_json_in_str = (str) => {
+  let found_json = [];
+  let brace_stack = [];
+  for(let i = 0; i < str.length; i++){
+    if(str.charAt(i) === '{' && str.charAt(i+1) === '"') {
+      //push the position of the brace
+      brace_stack.push(i)
+    }
+    else if(str.charAt(i) === '}') {
+      if(brace_stack.length > 0){
+        let prev_pos = brace_stack.pop();
+        if(brace_stack.length === 0) {
+          //we have a complete json element! let's store it
+          found_json.push(str.substr(prev_pos, i+1));
+        }
+      }
+      //if the length of brace_stack IS 0, there's a brace mismatch. but for now we'll just ignore that 
+    }
+  }
+  return found_json;
+}
 
+const parse_list_of_json = (json_list) => {
+  let parsed_json = []
+  for(const j of json_list){
+    parsed_json.push(JSON.parse(j));
+  }
+  return parsed_json;
 }
 
 const get_last_sub_dir_from_url = (url) => {
@@ -98,69 +115,22 @@ const main = async function (url){
   if(!book_id) return {};
   const book_url = get_book_url_from_book_id(book_id);
 
-  const find_json_in_str = (str) => {
-    let found_json = [];
-    let brace_stack = [];
-    for(let i = 0; i < str.length; i++){
-      if(str.charAt(i) === '{' && str.charAt(i+1) === '"') {
-        //push the position of the brace
-        brace_stack.push(i)
-      }
-      else if(str.charAt(i) === '}') {
-        if(brace_stack.length > 0){
-          let prev_pos = brace_stack.pop();
-          if(brace_stack.length === 0) {
-            //we have a complete json element! let's store it
-            found_json.push(str.substr(prev_pos, i+1));
-          }
-        }
-        //if the length of brace_stack IS 0, there's a brace mismatch. but for now we'll just ignore that 
-      }
+
+  const { statusCode, data, headers } = await curly.get(book_url);
+  const json_list = find_json_in_str(data);
+  const second_run = find_json_in_str(json_list[0])[0];
+  if(!second_run) return;
+  const parsed_json = JSON.parse(second_run);
+  return {
+    statusCode: statusCode,
+    body: {
+      book_id : book_id,
+      title : parsed_json.name,
+      isbn: parsed_json.isbn,
+      author : parsed_json.author[0].name,
+      num_pages : parsed_json.numberOfPages,
     }
-    return found_json;
   }
-
-  const parse_list_of_json = (json_list) => {
-    let parsed_json = []
-    for(const j of json_list){
-      parsed_json.push(JSON.parse(j));
-    }
-    return parsed_json;
-  }
-
-
-  const curlTest = new Curl();
-
-  curlTest.setOpt(Curl.option.URL, book_url);
-  const terminate = curlTest.close.bind(curlTest);
-
-  curlTest.on("end", function (statusCode, data, headers) {
-    const json_list = find_json_in_str(data);
-    // const parsed_json = parse_list_of_json(json_list)
-    console.log(json_list[0]);
-    // for(let i = 0 ; i < 20; i++) console.log(firstPart[i])
-    // console.info("Status code " + statusCode);
-    // console.info("***");
-    // console.info("Our response: " + data);
-    // console.info("***");
-    // console.info("Length: " + data.length);
-    // console.info("***");
-    // console.info("Total time taken: " + this.getInfo("TOTAL_TIME"));
-    // const page = parse_html(data);
-    // const book = get_book_data_from_page(page);
-
-    this.close();
-  });
-  curlTest.on("error", terminate);
-
-  curlTest.perform();
-
-
-  
-  // const page_HTML = await fetch_page(book_url);
-  
-  // const book = get_book_data_from_page(page);
-  // return book;
 };
 
 export default main;

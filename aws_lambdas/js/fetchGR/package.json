@@ -1,7 +1,5 @@
 {
   "dependencies": {
-    "got": "^12.4.1",
-    "node-html-parser": "^6.0.0",
     "node-libcurl": "^3.0.0"
   },
   "type": "module"
