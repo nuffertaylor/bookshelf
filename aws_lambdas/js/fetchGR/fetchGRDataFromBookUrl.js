@@ -1,4 +1,4 @@
-import { curly } from "node-libcurl";
+import got from 'got';
 
 process.on('uncaughtException', function (err) {
   console.log(err);
@@ -114,15 +114,15 @@ const main = async function (url){
   const book_id = remove_non_numeric_char_from_str(url);
   if(!book_id) return {};
   const book_url = get_book_url_from_book_id(book_id);
+  const page = await got.get(book_url);
 
-
-  const { statusCode, data, headers } = await curly.get(book_url);
-  const json_list = find_json_in_str(data);
+  // const { statusCode, page_HTML, headers } = await curly.get(book_url);
+  const json_list = find_json_in_str(page.body);
   const second_run = find_json_in_str(json_list[0])[0];
   if(!second_run) return;
   const parsed_json = JSON.parse(second_run);
   return {
-    statusCode: statusCode,
+    statusCode: page.statusCode,
     body: {
       book_id : book_id,
       title : parsed_json.name,

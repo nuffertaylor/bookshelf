@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "node-libcurl": "^3.0.0"
+    "got": "^12.5.3"
   },
   "type": "module"
 }
