@@ -5,11 +5,11 @@ export const handler = async (event) => {
 };
 
 //test locally via "node index.js"
-const res = await handler({url :
-  //insert test url here
-  "https://www.goodreads.com/book/show/55728061-and-then-she-vanished"
-});
-console.log(res);
+// const res = await handler({url :
+//   //insert test url here
+//   "https://www.goodreads.com/book/show/55728061-and-then-she-vanished"
+// });
+// console.log(res);
 
 //aws cli command to upload:
 /*
