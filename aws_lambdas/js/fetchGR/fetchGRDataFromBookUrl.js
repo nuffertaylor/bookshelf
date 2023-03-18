@@ -1,4 +1,6 @@
-import got from 'got';
+import scrape from 'website-scraper'; // only as ESM, no CommonJS
+import { parse as parse_html} from 'node-html-parser';
+import * as fs from 'node:fs';
 
 process.on('uncaughtException', function (err) {
   console.log(err);
@@ -8,28 +10,6 @@ function get_book_url_from_book_id(book_id){
   const URL_PREFIX = "https://www.goodreads.com/book/show/";
   return URL_PREFIX + book_id;
 }
-
-const find_json_in_str = (str) => {
-  let found_json = [];
-  let brace_stack = [];
-  for(let i = 0; i < str.length; i++){
-    if(str.charAt(i) === '{' && str.charAt(i+1) === '"') {
-      //push the position of the brace
-      brace_stack.push(i);
-    }
-    else if(str.charAt(i) === '}') {
-      if(brace_stack.length > 0){
-        let prev_pos = brace_stack.pop();
-        if(brace_stack.length === 0) {
-          //we have a complete json element! let's store it
-          found_json.push(str.substr(prev_pos, i+1));
-        }
-      }
-      //if the length of brace_stack IS 0, there's a brace mismatch. but for now we'll just ignore that 
-    }
-  }
-  return found_json;
-};
 
 const get_last_sub_dir_from_url = (url) => {
   let res = url.split('/').at(-1);
@@ -49,23 +29,40 @@ const main = async function (url){
   const book_id = remove_non_numeric_char_from_str(url);
   if(!book_id) return {};
   const book_url = get_book_url_from_book_id(book_id);
-  const page = await got.get(book_url);
 
-  // const { statusCode, page_HTML, headers } = await curly.get(book_url);
-  const json_list = find_json_in_str(page.body);
-  const second_run = find_json_in_str(json_list[0])[0];
-  if(!second_run) return;
-  const parsed_json = JSON.parse(second_run);
-  return {
-    statusCode: page.statusCode,
-    body: {
-      book_id : book_id,
-      title : parsed_json.name.replace(/&apos;/g, "'"),
-      isbn: parsed_json.isbn,
-      author : parsed_json.author[0].name,
-      num_pages : parsed_json.numberOfPages,
-    }
+  const dir_to_scrape_to = './s';
+  const options = {
+    urls: [book_url],
+    directory: dir_to_scrape_to
   };
+
+  //sometimes a request might not actually pull any data. We need (at least) the title and the author. If we can't find that data, try again.
+  //We'll try five times, and at that point throw an error
+  let parsed = null;
+  for(let i = 0; i < 5; i++){
+    const scraped = await scrape(options);
+    const page = parse_html(scraped[0].text);
+    const jsonScriptElement = page.querySelector("script[type='application/ld+json']");
+    if(jsonScriptElement) { 
+      const json = jsonScriptElement.innerHTML;
+      parsed = JSON.parse(json);
+      i=6;
+    }
+    //delete directory we scraped to
+    fs.rmSync(dir_to_scrape_to, { recursive: true, force: true });
+  }
+
+  if(!parsed) return { statusCode: 500 };
+  console.log(parsed);
+  return {
+    statusCode: 200,
+    body: {
+      book_id: book_id,
+      title: parsed.name,
+      num_pages: parsed.numberOfPages,
+      author: parsed.author[0].name
+    }
+  }
 };
 
 export default main;

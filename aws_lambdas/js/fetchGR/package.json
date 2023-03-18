@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "got": "^12.5.3"
+    "node-html-parser": "^6.1.5",
+    "website-scraper": "^5.3.1"
   },
   "type": "module"
 }
