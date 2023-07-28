@@ -37,9 +37,9 @@ const main = async function (url){
   };
 
   //sometimes a request might not actually pull any data. We need (at least) the title and the author. If we can't find that data, try again.
-  //We'll try five times, and at that point throw an error
+  //We'll try three times, and at that point throw an error
   let parsed = null;
-  for(let i = 0; i < 5; i++){
+  for(let i = 0; i < 3; i++){
     const scraped = await scrape(options);
     const page = parse_html(scraped[0].text);
     const jsonScriptElement = page.querySelector("script[type='application/ld+json']");
@@ -53,7 +53,6 @@ const main = async function (url){
   }
 
   if(!parsed) return { statusCode: 500 };
-  console.log(parsed);
   return {
     statusCode: 200,
     body: {
