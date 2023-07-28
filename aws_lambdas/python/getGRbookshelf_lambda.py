@@ -29,6 +29,7 @@ def get_books_from_shelf(userid, shelfname):
   page_counter = 1
   while(True):
     parsed_rss = feedparser.parse(rss_url + "&page=" + str(page_counter))
+    if(len(parsed_rss["entries"]) == 0): break
     for entry in parsed_rss["entries"]:
       book = {"book_id" : entry["book_id"], 
               "title" : entry["title"], 
@@ -41,7 +42,6 @@ def get_books_from_shelf(userid, shelfname):
               "user_rating" : entry["user_rating"]
               }
       books.append(book)
-    if(len(parsed_rss["entries"]) != 100): break
     page_counter += 1
   return books
 
