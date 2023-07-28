@@ -4,7 +4,7 @@ export const handler = async (event) => {
   return await main(event.url);
 };
 
-//test locally via "node index.js"
+/* test locally via "node index.js" */
 // const res = await handler({url :
 //   //insert test url here
 //   "https://www.goodreads.com/book/show/55728061-and-then-she-vanished"
