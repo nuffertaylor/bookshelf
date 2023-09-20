@@ -131,6 +131,25 @@ class CockroachDAO:
     );
     """
     self.exec_statement(create_shelf_bgs_table_sql)
+
+  def create_unfound_to_upload_table(self):
+    create_bookshelf_sql = """
+    CREATE TABLE IF NOT EXISTS unfound_to_upload (
+      upload_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      book_id INT NOT NULL,
+      title STRING NOT NULL,
+      author STRING NULL,
+      genre STRING NULL,
+      isbn STRING NULL,
+      isbn13 STRING NULL,
+      pubDate STRING NULL,
+      submitter STRING NOT NULL,
+      rating INT NULL,
+      uploaded BOOLEAN NULL,
+      timestamp INT NULL
+    );
+    """
+    self.exec_statement(create_bookshelf_sql)
   
   def format_shelf_bg_tuple(self, x):
     return {
