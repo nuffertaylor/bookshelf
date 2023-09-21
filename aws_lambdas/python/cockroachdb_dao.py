@@ -139,12 +139,10 @@ class CockroachDAO:
       book_id INT NOT NULL,
       title STRING NOT NULL,
       author STRING NULL,
-      genre STRING NULL,
       isbn STRING NULL,
       isbn13 STRING NULL,
       pubDate STRING NULL,
-      submitter STRING NOT NULL,
-      rating INT NULL,
+      owner STRING NOT NULL,
       uploaded BOOLEAN NULL,
       timestamp INT NULL
     );
@@ -163,7 +161,7 @@ class CockroachDAO:
         "timestamp" : x[7],
         "title" : x[8]
       }
-
+  
   def add_shelf_bg(self, submitter, filename, width_inches, width_pixels, shelf_bottoms, shelf_left, title):
     self.create_shelf_bgs_table()
     sql = """
@@ -237,6 +235,19 @@ class CockroachDAO:
     u_id = res[0]
     if(type(u_id) == list): u_id = u_id[0]
     return {"upload_id" : u_id}
+  
+  def add_unfound_to_upload(self, book, username):
+    self.create_unfound_to_upload_table()
+    sql = """
+          INSERT INTO unfound_to_upload
+          (book_id, title, author, isbn, isbn13, pubDate, owner, uploaded, timestamp) 
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+          RETURNING upload_id
+          """
+    res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["author"], book["isbn"], book["isbn13"], book["pubDate"], username, False, str(int(time.time()))))
+    u_id = res[0]
+    if(type(u_id) == list): u_id = u_id[0]
+    return {"upload_id" : u_id}
 
   def get_book_by(self, key, value):
     if(key == "upload_id" and not self.validate_uuid(value)): return False
@@ -251,6 +262,12 @@ class CockroachDAO:
     sql = "SELECT * FROM bookshelf WHERE submitter = %s AND book_id = %s"
     res = self.exec_statement_fetch(sql, (username, book_id))
     if(len(res) > 0): return self.format_book_tuple(res[0])
+    return False
+  
+  def has_user_saved_unfound(self, username, book_id):
+    sql = "SELECT * FROM unfound_to_upload WHERE owner = %s AND book_id = %s"
+    res = self.exec_statement_fetch(sql, (username, book_id))
+    if(len(res) > 0): return True
     return False
 
   def get_book_batch(self, book_batch):
@@ -299,6 +316,20 @@ class CockroachDAO:
       "rating" : book_tuple[12],
       "flagged" : book_tuple[13]
     }
+  
+  def format_unfound_to_upload_tuple(self, book_tuple):
+    return {
+      "upload_id" : book_tuple[0],
+      "book_id" : book_tuple[1],
+      "title" : book_tuple[2],
+      "author" : book_tuple[3],
+      "isbn" : book_tuple[4],
+      "isbn13" : book_tuple[5],
+      "pubDate" : book_tuple[6],
+      "owner" : book_tuple[7],
+      "uploaded" : book_tuple[8],
+      "timestamp" : book_tuple[9]
+    }
 
   def format_shelf_image_tuple(self, shelf_image_tuple):
     return {
@@ -317,6 +348,13 @@ class CockroachDAO:
     for r in si_list:
       si.append(self.format_shelf_image_tuple(r))
     return si
+  
+  def format_unfound_to_upload_tuple_list(self, book_list):
+    if(type(book_list) is not list): return False
+    formatted = []
+    for r in book_list:
+      formatted.append(self.format_unfound_to_upload_tuple(r))
+    return formatted
 
   def add_books(self, bookList):
     for book in bookList:
@@ -324,6 +362,13 @@ class CockroachDAO:
       if(self.get_book_by("filename", book["fileName"])):
         continue
       self.add_book(book)
+
+  def add_unfound_to_uploads(self, bookList, username):
+    for book in bookList:
+      # don't allow previously queued/uploaded books to be added
+      if(self.has_user_saved_unfound(username, book["book_id"]) or self.get_book_by("book_id", book["book_id"])):
+        continue
+      self.add_unfound_to_upload(book, username)
 
   #todo: dynamic function that updates all changed values in a book object.
   def update_book(self, book):
@@ -438,6 +483,12 @@ class CockroachDAO:
     sql = "SELECT * FROM shelf_images WHERE OWNER = %s"
     res = self.exec_statement_fetch(sql, (owner,))
     return self.format_shelf_image_tuple_list(res)
+  
+  def get_unfound_to_upload_by_owner(self, owner):
+    sql = "SELECT * FROM unfound_to_upload WHERE owner = %s"
+    res = self.exec_statement_fetch(sql, (owner,))
+    return self.format_unfound_to_upload_tuple_list(res)
+  
 
   #longevity corresponds to the number of days the shelf image is allowed to exist on the server. default is one day
   def get_shelf_images_to_delete(self, longevity=1):
