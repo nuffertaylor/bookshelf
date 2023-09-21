@@ -234,6 +234,7 @@ class CockroachDAO:
     res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], book["domColor"], "0", str(int(time.time()))))
     u_id = res[0]
     if(type(u_id) == list): u_id = u_id[0]
+    self.mark_unfound_as_uploaded(book["book_id"])
     return {"upload_id" : u_id}
   
   def add_unfound_to_upload(self, book, username):
@@ -485,10 +486,13 @@ class CockroachDAO:
     return self.format_shelf_image_tuple_list(res)
   
   def get_unfound_to_upload_by_owner(self, owner):
-    sql = "SELECT * FROM unfound_to_upload WHERE owner = %s"
-    res = self.exec_statement_fetch(sql, (owner,))
+    sql = "SELECT * FROM unfound_to_upload WHERE owner = %s and uploaded = %s"
+    res = self.exec_statement_fetch(sql, (owner, False))
     return self.format_unfound_to_upload_tuple_list(res)
   
+  def mark_unfound_as_uploaded(self, book_id):
+    sql = "UPDATE unfound_to_upload SET uploaded = %s WHERE book_id = %s"
+    return self.exec_statement(sql, (True, book_id))
 
   #longevity corresponds to the number of days the shelf image is allowed to exist on the server. default is one day
   def get_shelf_images_to_delete(self, longevity=1):
