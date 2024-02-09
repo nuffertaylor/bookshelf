@@ -51,12 +51,22 @@ def which_books_found(bookList, foundBooks):
   found = []
   for b in bookList:
     foundBool = False
+    # first loop checks for book_id
     for f in foundBooks:
-      if(str(b["book_id"]) == str(f["book_id"]) or b["title"] == f["title"]):
+      if(str(b["book_id"]) == str(f["book_id"])):
         foundBool = True
         f.update(b)
         found.append(f)
         break
+    # second loop checks for title match
+    # TODO: it should make sure title AND author match
+    if(not foundBool):
+      for f in foundBooks:
+        if(b["title"] == f["title"]):
+          foundBool = True
+          f.update(b)
+          found.append(f)
+          break
     if(not foundBool):
       unfound.append(b)
   return found, unfound
