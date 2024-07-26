@@ -15,6 +15,7 @@ const get_book_data_by_goodreads_id = async (goodreads_id) => {
   const title = await bookTitleElement.evaluate(el => el.textContent);
 
   let series = null;
+  // wrap in try catch. If there's an error here, there is no relevant series so just ignore
   try {
     const seriesElement = await page.$('[class="Text Text__title3 Text__italic Text__regular Text__subdued"]');
     series = await seriesElement.evaluate(el => el.firstChild.textContent);

@@ -1,7 +1,6 @@
 {
   "dependencies": {
-    "got": "^12.5.3",
-    "puppeteer": "^22.14.0"
+    "got": "^12.5.3"
   },
   "type": "module"
 }
