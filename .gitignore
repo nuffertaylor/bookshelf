@@ -7,7 +7,7 @@ out
 node_modules
 cockroachdb_url.txt
 cockroach-keys
-lambda.zip
+*.zip
 .vscode
 *.crt
 1-1000GR.json
