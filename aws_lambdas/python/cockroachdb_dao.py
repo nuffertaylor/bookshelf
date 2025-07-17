@@ -4,6 +4,8 @@ import uuid
 
 class CockroachDAO:
   def __init__(self, db_url):
+    # TODO: make sslrootcert environment variable
+    # also make it optional so we can connect to insecure db locally when desired
     self.conn = psycopg2.connect(db_url, sslrootcert="./root.crt")
 
   def __del__(self):
