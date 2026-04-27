@@ -1,0 +1,17 @@
+{
+  "name": "fetch-goodreads-claude",
+  "version": "1.0.0",
+  "description": "AWS Lambda to fetch Goodreads book data using Claude API",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
