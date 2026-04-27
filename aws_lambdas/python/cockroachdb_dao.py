@@ -382,6 +382,11 @@ class CockroachDAO:
     sql = "UPDATE bookshelf set " + col + " = %s WHERE upload_id = %s"
     return self.exec_statement(sql, (value, upload_id))
 
+  def add_shelf_image_and_owner(self, filename, owner, bookshelf_name):
+    sql = "INSERT INTO shelf_images (filename, timestamp, owner, bookshelf_name) VALUES (%s, %s, %s, %s)"
+    self.exec_statement(sql, (filename, str(int(time.time())), owner, bookshelf_name))
+    return True
+
   def add_shelf_image(self, filename, gr_shelf_name, gr_user_id):
     sql = "INSERT INTO shelf_images (filename, timestamp, gr_shelf_name, gr_user_id) VALUES (%s, %s, %s, %s)"
     self.exec_statement(sql, (filename, str(int(time.time())), gr_shelf_name, gr_user_id))
