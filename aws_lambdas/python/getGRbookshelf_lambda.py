@@ -45,30 +45,51 @@ def get_books_from_shelf(userid, shelfname):
     page_counter += 1
   return books
 
-def which_books_found(bookList, foundBooks):
-  #return a list, the edited bookList which only contains the books not found in foundBooks
+def which_books_found(bookList):
+  """
+  For each book in bookList, find all matching spines by title and author.
+  Returns found (2D array of spine options per book) and unfound (books with no spines).
+  Spines matching the original book_id are prioritized at the top.
+  """
+  # Fetch all matching spines in one batch query
+  all_spines = db.get_spines_batch_by_title_author(bookList)
+
+  # Build a lookup dict: (title, author) -> list of spines
+  spine_lookup = {}
+  for spine in all_spines:
+    key = (spine["title"], spine["author"] if spine["author"] else "")
+    if key not in spine_lookup:
+      spine_lookup[key] = []
+    spine_lookup[key].append(spine)
+
   unfound = []
   found = []
+
   for b in bookList:
-    foundBool = False
-    # first loop checks for book_id
-    for f in foundBooks:
-      if(str(b["book_id"]) == str(f["book_id"])):
-        foundBool = True
-        f.update(b)
-        found.append(f)
-        break
-    # second loop checks for title match
-    # TODO: it should make sure title AND author match
-    if(not foundBool):
-      for f in foundBooks:
-        if(b["title"] == f["title"]):
-          foundBool = True
-          f.update(b)
-          found.append(f)
-          break
-    if(not foundBool):
+    key = (b["title"], b["author"] if b["author"] else "")
+    spines = spine_lookup.get(key, [])
+
+    if len(spines) == 0:
       unfound.append(b)
+    else:
+      # Sort spines: matching book_id first
+      matching_book_id = []
+      other_spines = []
+
+      for spine in spines:
+        # Merge goodreads data into each spine
+        spine_copy = spine.copy()
+        spine_copy.update(b)
+
+        if str(spine_copy["book_id"]) == str(b["book_id"]):
+          matching_book_id.append(spine_copy)
+        else:
+          other_spines.append(spine_copy)
+
+      # Prioritize matching book_id at the top
+      spine_options = matching_book_id + other_spines
+      found.append(spine_options)
+
   return found, unfound
 
 def getGRbookshelf(userid, shelfname):
@@ -76,9 +97,8 @@ def getGRbookshelf(userid, shelfname):
   #TODO: If it isn't only numbers, it may be a profile URL. Edit the input and see if we can get a valid user_id this way. If not, return fail.
   books = get_books_from_shelf(userid, shelfname)
   print("looking for " + str(len(books)) + " books")
-  batch = db.get_book_batch(books)
-  print("found images for " + str(len(batch)) + " books")
-  found, unfound = which_books_found(books, batch)
+  found, unfound = which_books_found(books)
+  print("found images for " + str(len(found)) + " books")
   return {
     "found" : found,
     "unfound" : unfound

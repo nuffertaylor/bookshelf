@@ -290,6 +290,54 @@ class CockroachDAO:
       book_list.append(self.format_book_tuple(r))
     return book_list
 
+  def get_spines_by_title_author(self, title, author):
+    """
+    Get all book spines matching the given title and author.
+    Uses case-insensitive matching with whitespace trimming.
+    Returns a list of formatted book tuples.
+    """
+    sql = """
+      SELECT * FROM bookshelf
+      WHERE LOWER(TRIM(title)) = LOWER(TRIM(%s))
+      AND LOWER(TRIM(author)) = LOWER(TRIM(%s))
+    """
+    res = self.exec_statement_fetch(sql, (title, author))
+    if not res:
+      return []
+    book_list = []
+    for r in res:
+      book_list.append(self.format_book_tuple(r))
+    return book_list
+
+  def get_spines_batch_by_title_author(self, book_list):
+    """
+    Batch query to get all spines for multiple books at once.
+    Takes a list of books with 'title' and 'author' fields.
+    Returns a list of all matching formatted book tuples.
+    Uses exact matching.
+    """
+    if not book_list or len(book_list) == 0:
+      return []
+
+    # Build the SQL query with multiple title/author pairs
+    conditions = []
+    params = []
+    for book in book_list:
+      conditions.append("(title = %s AND author = %s)")
+      params.append(book["title"])
+      params.append(book["author"])
+
+    sql = "SELECT * FROM bookshelf WHERE " + " OR ".join(conditions)
+
+    res = self.exec_statement_fetch(sql, tuple(params))
+    if not res:
+      return []
+
+    formatted_results = []
+    for r in res:
+      formatted_results.append(self.format_book_tuple(r))
+    return formatted_results
+
   def update_book_file_name(self, upload_id, fileName):
     if(not self.validate_uuid(upload_id)): return False
     sql = "UPDATE bookshelf SET fileName = %s WHERE upload_id = %s"
