@@ -40,7 +40,7 @@ const fetchBookData = async (url) => {
   const $ = cheerio.load(html);
 
   // Try to extract from JSON-LD structured data first (most reliable)
-  let bookData = { title: null, author: null, year: null };
+  let bookData = { title: null, author: null, pubDate: null };
 
   const jsonLdScript = $('script[type="application/ld+json"]').html();
   if (jsonLdScript) {
@@ -53,7 +53,7 @@ const fetchBookData = async (url) => {
       if (parsed.datePublished) {
         const yearMatch = parsed.datePublished.match(/\d{4}/);
         if (yearMatch) {
-          bookData.year = yearMatch[0];
+          bookData.pubDate = yearMatch[0];
         }
       }
     } catch (error) {
@@ -70,13 +70,13 @@ const fetchBookData = async (url) => {
     bookData.author = $('[data-testid="name"]').first().text().trim() || null;
   }
 
-  if (!bookData.year) {
+  if (!bookData.pubDate) {
     const pubInfo = $('[data-testid="publicationInfo"]').first().text().trim();
     if (pubInfo) {
       // Extract year from publication info (e.g., "First published January 1, 2020")
       const yearMatch = pubInfo.match(/\d{4}/);
       if (yearMatch) {
-        bookData.year = yearMatch[0];
+        bookData.pubDate = yearMatch[0];
       }
     }
   }
@@ -93,9 +93,9 @@ export const handler = async (event) => {
     if (!input) {
       return {
         statusCode: 400,
-        body: JSON.stringify({
+        body: {
           error: "Missing book_id or url parameter"
-        })
+        }
       };
     }
 
@@ -104,9 +104,9 @@ export const handler = async (event) => {
     if (!bookId) {
       return {
         statusCode: 400,
-        body: JSON.stringify({
+        body: {
           error: "Could not extract valid book ID from input"
-        })
+        }
       };
     }
 
@@ -117,21 +117,21 @@ export const handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
+      body: {
         book_id: bookId,
         title: bookData.title,
         author: bookData.author,
-        year: bookData.year
-      })
+        pubDate: bookData.pubDate
+      }
     };
 
   } catch (error) {
     console.error("Error fetching book data:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({
+      body: {
         error: error.message || "Internal server error"
-      })
+      }
     };
   }
 };
