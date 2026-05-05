@@ -1,0 +1,9 @@
+{
+  "submitter": "testuser",
+  "filename": "shelf-bg.jpg",
+  "width_inches": 12,
+  "width_pixels": 1200,
+  "shelf_bottoms": [200, 400, 600],
+  "shelf_left": 50,
+  "title": "Custom Shelf Background"
+}

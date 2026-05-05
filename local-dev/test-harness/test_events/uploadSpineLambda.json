@@ -1,0 +1,8 @@
+{
+  "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "title": "Test Book",
+  "book_id": "12345",
+  "dimensions": "100x150",
+  "username": "testuser",
+  "authtoken": "valid-auth-token-here"
+}

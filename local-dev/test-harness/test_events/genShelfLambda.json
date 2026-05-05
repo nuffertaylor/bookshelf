@@ -1,0 +1,6 @@
+{
+  "username": "testuser",
+  "authtoken": "valid-auth-token-here",
+  "bookshelf_name": "My Test Shelf",
+  "book_ids": ["12345", "67890"]
+}

@@ -1,10 +1,18 @@
 import psycopg2
 import time
 import uuid
+import os
 
 class CockroachDAO:
   def __init__(self, db_url):
-    self.conn = psycopg2.connect(db_url, sslrootcert="./root.crt")
+    # Allow SSL cert path override for local dev
+    ssl_cert = os.getenv('SSL_CERT_PATH', './root.crt')
+    if os.path.exists(ssl_cert):
+      self.conn = psycopg2.connect(db_url, sslrootcert=ssl_cert)
+    else:
+      # For local dev without SSL or when cert doesn't exist
+      # Ensure connection string has appropriate sslmode parameter
+      self.conn = psycopg2.connect(db_url)
 
   def __del__(self):
     self.disconnect()

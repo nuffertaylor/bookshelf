@@ -1,0 +1,13 @@
+{
+  "username": "testuser",
+  "books": [
+    {
+      "book_id": "99999",
+      "title": "Unfound Test Book",
+      "author": "Test Author",
+      "isbn": "1234567890",
+      "isbn13": "9781234567890",
+      "pubDate": "2023"
+    }
+  ]
+}

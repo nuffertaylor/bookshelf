@@ -1,0 +1,7 @@
+{
+  "requestType": "register",
+  "username": "testuser",
+  "password": "testpass123",
+  "email": "test@example.com",
+  "ip": "127.0.0.1"
+}

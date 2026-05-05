@@ -1,0 +1,23 @@
+# Database
+psycopg2-binary>=2.9.0
+
+# AWS SDK
+boto3>=1.26.0
+
+# Image processing
+Pillow>=9.0.0
+colorthief>=0.2.1
+
+# Utilities
+python-dotenv>=0.19.0
+
+# Testing (future)
+pytest>=7.0.0
+pytest-cov>=3.0.0
+
+# RSS parsing (for Goodreads Lambda)
+feedparser>=6.0.0
+
+# Web scraping (for Goodreads)
+requests>=2.28.0
+beautifulsoup4>=4.11.0

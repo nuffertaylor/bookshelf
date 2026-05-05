@@ -2,11 +2,20 @@ import boto3
 from boto3.dynamodb.types import TypeDeserializer
 from boto3.dynamodb.conditions import Key
 import time
+import os
 
-region = "us-east-1"
-regionEndpoint = "https://dynamodb."+ region + ".amazonaws.com"
-dynamodb = boto3.resource('dynamodb', endpoint_url=regionEndpoint)
-db_client = boto3.client("dynamodb", region)
+# Support LocalStack endpoint for local development
+region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+endpoint_url = os.getenv('AWS_ENDPOINT_URL')
+if endpoint_url:
+  # Local development with LocalStack
+  dynamodb = boto3.resource('dynamodb', region_name=region, endpoint_url=endpoint_url)
+  db_client = boto3.client('dynamodb', region_name=region, endpoint_url=endpoint_url)
+else:
+  # Production AWS
+  regionEndpoint = "https://dynamodb."+ region + ".amazonaws.com"
+  dynamodb = boto3.resource('dynamodb', endpoint_url=regionEndpoint)
+  db_client = boto3.client("dynamodb", region)
 table = dynamodb.Table('bookshelf')
 usertable = dynamodb.Table('bookshelf-users')
 shelftable = dynamodb.Table('shelf-images')

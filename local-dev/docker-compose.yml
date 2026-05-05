@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: bookshelf-postgres
+    environment:
+      POSTGRES_DB: bookshelf
+      POSTGRES_USER: bookshelf
+      POSTGRES_PASSWORD: local_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./postgres/root.crt:/var/lib/postgresql/root.crt
+      - ./postgres/root.key:/var/lib/postgresql/root.key
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/var/lib/postgresql/root.crt
+      -c ssl_key_file=/var/lib/postgresql/root.key
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookshelf -d bookshelf"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: bookshelf-localstack
+    environment:
+      SERVICES: s3,dynamodb
+      DEBUG: 0
+      DATA_DIR: /tmp/localstack/data
+      DOCKER_HOST: unix:///var/run/docker.sock
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/tmp/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  localstack-init:
+    image: amazon/aws-cli
+    container_name: bookshelf-localstack-init
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - ./localstack/init-aws.sh:/init-aws.sh
+    entrypoint: ["/bin/bash", "/init-aws.sh"]
+    depends_on:
+      localstack:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  localstack_data:

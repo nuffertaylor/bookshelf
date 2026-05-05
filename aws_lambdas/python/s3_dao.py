@@ -4,9 +4,10 @@ from botocore.exceptions import ClientError
 import os
 from PIL import Image
 
-
-s3 = boto3.resource('s3')
-s3_client = boto3.client('s3')
+# Support LocalStack endpoint for local development
+endpoint_url = os.getenv('AWS_ENDPOINT_URL')
+s3 = boto3.resource('s3', endpoint_url=endpoint_url)
+s3_client = boto3.client('s3', endpoint_url=endpoint_url)
 
 def upload_file(file_name, bucket="bookshelf-spines", object_name=None):
   """Upload a file to an S3 bucket
