@@ -54,20 +54,26 @@ def which_books_found(bookList):
   # Fetch all matching spines in one batch query
   all_spines = db.get_spines_batch_by_title_author(bookList)
 
-  # Build a lookup dict: (title, author) -> list of spines
+  # Build lookup dicts: normalized (title, author) -> spines, and book_id -> spines
   spine_lookup = {}
+  book_id_lookup = {}
   for spine in all_spines:
-    key = (spine["title"], spine["author"] if spine["author"] else "")
+    key = (spine["title"].lower().strip() if spine["title"] else "", spine["author"].lower().strip() if spine["author"] else "")
     if key not in spine_lookup:
       spine_lookup[key] = []
     spine_lookup[key].append(spine)
+    bid = str(spine.get("book_id", ""))
+    if bid:
+      if bid not in book_id_lookup:
+        book_id_lookup[bid] = []
+      book_id_lookup[bid].append(spine)
 
   unfound = []
   found = []
 
   for b in bookList:
-    key = (b["title"], b["author"] if b["author"] else "")
-    spines = spine_lookup.get(key, [])
+    key = (b["title"].lower().strip() if b["title"] else "", b["author"].lower().strip() if b["author"] else "")
+    spines = spine_lookup.get(key, []) or book_id_lookup.get(str(b.get("book_id", "")), [])
 
     if len(spines) == 0:
       unfound.append(b)
