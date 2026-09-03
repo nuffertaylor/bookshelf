@@ -312,22 +312,28 @@ class CockroachDAO:
   def get_spines_batch_by_title_author(self, book_list):
     """
     Batch query to get all spines for multiple books at once.
-    Takes a list of books with 'title' and 'author' fields.
+    Takes a list of books with 'title', 'author', and 'book_id' fields.
     Returns a list of all matching formatted book tuples.
-    Uses exact matching.
+    Uses case-insensitive matching; falls back to book_id if title/author differs.
     """
     if not book_list or len(book_list) == 0:
       return []
 
-    # Build the SQL query with multiple title/author pairs
-    conditions = []
+    title_author_conditions = []
     params = []
+    book_ids = []
     for book in book_list:
-      conditions.append("(title = %s AND author = %s)")
+      title_author_conditions.append("(LOWER(TRIM(title)) = LOWER(TRIM(%s)) AND LOWER(TRIM(author)) = LOWER(TRIM(%s)))")
       params.append(book["title"])
       params.append(book["author"])
+      if book.get("book_id"):
+        book_ids.append(book["book_id"])
 
-    sql = "SELECT * FROM bookshelf WHERE " + " OR ".join(conditions)
+    sql = "SELECT * FROM bookshelf WHERE " + " OR ".join(title_author_conditions)
+    if book_ids:
+      placeholders = ", ".join(["%s"] * len(book_ids))
+      sql += f" OR book_id IN ({placeholders})"
+      params.extend(book_ids)
 
     res = self.exec_statement_fetch(sql, tuple(params))
     if not res:
