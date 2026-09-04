@@ -11,3 +11,36 @@ cockroach-keys
 .vscode
 *.crt
 1-1000GR.json
+
+# Python
+.venv/
+*.egg-info/
+*.dist-info/
+
+# SAM build artifacts
+.aws-sam/
+
+# pip-installed packages in src/ (populated by `make local`, not committed)
+src/*.dist-info/
+src/*.egg-info/
+src/*.libs/
+src/boto3/
+src/botocore/
+src/certifi/
+src/charset_normalizer/
+src/colorthief.py
+src/colorthief-*.dist-info/
+src/dateutil/
+src/feedparser/
+src/feedparser_sgmllib/
+src/idna/
+src/jmespath/
+src/PIL/
+src/Pillow*/
+src/psycopg2/
+src/psycopg2_binary*/
+src/s3transfer/
+src/six*
+src/urllib3/
+src/werkzeug/
+src/xmltodict*

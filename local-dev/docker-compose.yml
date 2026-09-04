@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: bookshelf
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dev
+    ports:
+      - "5432:5432"
+
+  localstack:
+    image: localstack/localstack
+    environment:
+      SERVICES: s3
+    ports:
+      - "4566:4566"
