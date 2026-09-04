@@ -1,0 +1,198 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Bookshelf Lambda functions
+
+Parameters:
+  DatabaseUrl:
+    Type: String
+    Default: postgresql://postgres:dev@host.docker.internal:5432/bookshelf
+  CertSecretArn:
+    Type: String
+    Default: ""
+  SkipSslCert:
+    Type: String
+    Default: "true"
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    Environment:
+      Variables:
+        DATABASE_URL: !Ref DatabaseUrl
+        CERT_SECRET_ARN: !Ref CertSecretArn
+        SKIP_SSL_CERT: !Ref SkipSslCert
+        PYTHONPATH: /opt/python:/opt
+    Layers:
+      - !Ref BookshelfLayer
+
+Resources:
+  BookshelfLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: bookshelf-shared
+      ContentUri: ../src/
+      CompatibleRuntimes:
+        - python3.12
+    Metadata:
+      BuildMethod: python3.12
+
+  LoginRegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: loginRegister
+      CodeUri: ../lambdas/login_register/
+      Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /auth
+            Method: post
+
+  ValidateAuthtokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: validateAuthtoken
+      CodeUri: ../lambdas/validate_authtoken/
+      Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /validate
+            Method: post
+
+  UploadSpineFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: uploadSpine
+      CodeUri: ../lambdas/upload_spine/
+      Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /spine
+            Method: post
+
+  GenShelfFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: genShelf
+      CodeUri: ../lambdas/gen_shelf/
+      Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /shelf
+            Method: post
+
+  GetGRBookshelfFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: getGRBookshelf
+      CodeUri: ../lambdas/get_gr_bookshelf/
+      Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /gr-bookshelf
+            Method: post
+
+  SetGoodreadsIdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: setGoodreadsId
+      CodeUri: ../lambdas/set_goodreads_id/
+      Handler: handler.lambda_handler
+
+  AddShelfBgFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: addShelfBg
+      CodeUri: ../lambdas/add_shelf_bg/
+      Handler: handler.lambda_handler
+
+  GetShelfBgsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: getShelfBgs
+      CodeUri: ../lambdas/get_shelf_bgs/
+      Handler: handler.lambda_handler
+
+  AddUnfoundToUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: addUnfoundToUpload
+      CodeUri: ../lambdas/add_unfound_to_upload/
+      Handler: handler.lambda_handler
+
+  GetUnfoundToUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: getUnfoundToUpload
+      CodeUri: ../lambdas/get_unfound_to_upload/
+      Handler: handler.lambda_handler
+
+  CalcDomColorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: calcDomColor
+      CodeUri: ../lambdas/calc_dom_color/
+      Handler: handler.lambda_handler
+
+  CleanS3ShelvesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: cleanS3Shelves
+      CodeUri: ../lambdas/clean_s3_shelves/
+      Handler: handler.lambda_handler
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 day)
+
+  LeaderboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: leaderboard
+      CodeUri: ../lambdas/leaderboard/
+      Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /leaderboard
+            Method: get
+
+  VisitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: visit
+      CodeUri: ../lambdas/visit/
+      Handler: handler.lambda_handler
+
+  SetShelfOwnerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: setShelfOwner
+      CodeUri: ../lambdas/set_shelf_owner/
+      Handler: handler.lambda_handler
+
+  GetOwnerShelvesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: getOwnerShelves
+      CodeUri: ../lambdas/get_owner_shelves/
+      Handler: handler.lambda_handler
+
+  GetSpinesBySubmitterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: getSpinesBySubmitter
+      CodeUri: ../lambdas/get_spines_by_submitter/
+      Handler: handler.lambda_handler
