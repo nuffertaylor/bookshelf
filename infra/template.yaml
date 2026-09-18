@@ -12,8 +12,16 @@ Parameters:
   SkipSslCert:
     Type: String
     Default: "true"
+  AwsEndpointUrl:
+    Type: String
+    Default: ""
 
 Globals:
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type'"
+      AllowOrigin: "'*'"
   Function:
     Runtime: python3.12
     Timeout: 30
@@ -23,6 +31,7 @@ Globals:
         CERT_SECRET_ARN: !Ref CertSecretArn
         SKIP_SSL_CERT: !Ref SkipSslCert
         PYTHONPATH: /opt/python:/opt
+        S3_ENDPOINT_URL: !Ref AwsEndpointUrl
     Layers:
       - !Ref BookshelfLayer
 
@@ -47,7 +56,7 @@ Resources:
         Api:
           Type: Api
           Properties:
-            Path: /auth
+            Path: /loginregister
             Method: post
 
   ValidateAuthtokenFunction:
@@ -61,7 +70,7 @@ Resources:
           Type: Api
           Properties:
             Path: /validate
-            Method: post
+            Method: get
 
   UploadSpineFunction:
     Type: AWS::Serverless::Function
@@ -99,8 +108,23 @@ Resources:
         Api:
           Type: Api
           Properties:
-            Path: /gr-bookshelf
-            Method: post
+            Path: /getgrbookshelf
+            Method: get
+
+  GetGRBookDetailsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: getGRBookDetails
+      CodeUri: ../lambdas/get_gr_book_details/
+      Handler: index.handler
+      Runtime: nodejs20.x
+      Layers: []
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /getgrbookdetails
+            Method: get
 
   SetGoodreadsIdFunction:
     Type: AWS::Serverless::Function
@@ -108,6 +132,12 @@ Resources:
       FunctionName: setGoodreadsId
       CodeUri: ../lambdas/set_goodreads_id/
       Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /setusergrid
+            Method: post
 
   AddShelfBgFunction:
     Type: AWS::Serverless::Function
@@ -129,6 +159,12 @@ Resources:
       FunctionName: addUnfoundToUpload
       CodeUri: ../lambdas/add_unfound_to_upload/
       Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /addunfoundtoupload
+            Method: post
 
   GetUnfoundToUploadFunction:
     Type: AWS::Serverless::Function
@@ -136,6 +172,12 @@ Resources:
       FunctionName: getUnfoundToUpload
       CodeUri: ../lambdas/get_unfound_to_upload/
       Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /getunfoundtoupload
+            Method: get
 
   CalcDomColorFunction:
     Type: AWS::Serverless::Function
@@ -175,6 +217,12 @@ Resources:
       FunctionName: visit
       CodeUri: ../lambdas/visit/
       Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /visit
+            Method: post
 
   SetShelfOwnerFunction:
     Type: AWS::Serverless::Function
@@ -182,6 +230,12 @@ Resources:
       FunctionName: setShelfOwner
       CodeUri: ../lambdas/set_shelf_owner/
       Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /setshelfowner
+            Method: post
 
   GetOwnerShelvesFunction:
     Type: AWS::Serverless::Function
@@ -189,6 +243,12 @@ Resources:
       FunctionName: getOwnerShelves
       CodeUri: ../lambdas/get_owner_shelves/
       Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /getownershelves
+            Method: get
 
   GetSpinesBySubmitterFunction:
     Type: AWS::Serverless::Function
@@ -196,3 +256,9 @@ Resources:
       FunctionName: getSpinesBySubmitter
       CodeUri: ../lambdas/get_spines_by_submitter/
       Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /getbookspinesbysubmitter
+            Method: get

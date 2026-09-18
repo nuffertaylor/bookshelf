@@ -1,4 +1,4 @@
-#!/Users/tnuffer_admin/projects/bookshelf/.venv/bin/python3
+#!/usr/local/bin/python3.12
 
 import sys
 import json

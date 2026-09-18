@@ -1,6 +1,6 @@
 import os
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
-from bookshelf.http import http_result
+from bookshelf.http import http_result, parse_event
 
 _db = None
 
@@ -13,6 +13,7 @@ def _get_db():
 
 
 def lambda_handler(event, context):
+    event = parse_event(event)
     db = _get_db()
     if "bg_id" in event and event["bg_id"]:
         results = db.get_shelf_bg_by_bg_id(event["bg_id"])

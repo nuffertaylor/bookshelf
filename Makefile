@@ -14,7 +14,9 @@ local: layer-deps
 	sam build --template infra/template.yaml
 	DOCKER_HOST=unix://$(HOME)/.colima/default/docker.sock \
 	  AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
-	  sam local start-api --template infra/template.yaml
+	  sam local start-api \
+	    --parameter-overrides AwsEndpointUrl="http://host.docker.internal:4566" \
+	    --port 3001
 
 test:
 	pytest tests/

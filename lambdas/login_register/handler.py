@@ -1,7 +1,7 @@
 import os
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
 from bookshelf.auth import gen_salt, hash_and_salt, get_7_days_from_now
-from bookshelf.http import http_result
+from bookshelf.http import http_result, parse_event
 
 _db = None
 
@@ -14,6 +14,7 @@ def _get_db():
 
 
 def lambda_handler(event, context):
+    event = parse_event(event)
     db = _get_db()
     if "requestType" not in event:
         return http_result(400, "No requestType provided")

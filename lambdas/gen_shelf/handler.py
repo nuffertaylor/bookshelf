@@ -4,7 +4,7 @@ import string
 from bookshelf.bookshelf import Bookshelf
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
 from bookshelf.dao.s3_dao import upload_file, openS3Image
-from bookshelf.http import http_result
+from bookshelf.http import http_result, parse_event
 
 _db = None
 
@@ -27,6 +27,7 @@ class S3ImageOpener:
 
 
 def lambda_handler(event, context):
+    event = parse_event(event)
     db = _get_db()
     sorted_books = event["bookList"]
     bookshelf = Bookshelf(S3ImageOpener, "bookshelf1.jpg", 35.5, 1688, [676, 1328, 2008, 2708, 3542], 75)

@@ -1,7 +1,7 @@
 import os
 import time
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
-from bookshelf.http import http_result
+from bookshelf.http import http_result, parse_event
 
 _db = None
 WAITING_PERIOD = 60 * 10
@@ -15,6 +15,7 @@ def _get_db():
 
 
 def lambda_handler(event, context):
+    event = parse_event(event)
     db = _get_db()
     if "ip" not in event:
         return http_result(403, "missing ip")

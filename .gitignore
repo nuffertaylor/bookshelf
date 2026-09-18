@@ -1,4 +1,5 @@
 images/
+!local-dev/seed/images/
 .DS_Store
 notes.txt
 __pycache__

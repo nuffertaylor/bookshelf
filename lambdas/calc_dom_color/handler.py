@@ -1,7 +1,7 @@
 import os
 import urllib.request
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
-from bookshelf.http import http_result
+from bookshelf.http import http_result, parse_event
 from colorthief import ColorThief
 
 _db = None
@@ -34,6 +34,7 @@ def verify_required_values(event):
 
 
 def lambda_handler(event, context):
+    event = parse_event(event)
     db = _get_db()
     if not verify_required_values(event):
         return http_result(403, _error_message)

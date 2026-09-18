@@ -1,7 +1,7 @@
 from base64 import b64decode
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
 from bookshelf.dao.s3_dao import upload_fileobj, delS3File
-from bookshelf.http import http_result
+from bookshelf.http import http_result, parse_event
 from io import BytesIO
 import os
 import random
@@ -80,6 +80,7 @@ def create_and_upload_img(event):
 
 
 def lambda_handler(event, context):
+    event = parse_event(event)
     db = _get_db()
     if not verify_required_values(event):
         return http_result(403, _error_message)
