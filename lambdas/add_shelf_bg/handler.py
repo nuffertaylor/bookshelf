@@ -1,7 +1,7 @@
 import os
 import random
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
-from bookshelf.http import http_result
+from bookshelf.http import http_result, parse_event
 
 _db = None
 
@@ -18,6 +18,7 @@ def rand_str(num_char):
 
 
 def lambda_handler(event, context):
+    event = parse_event(event)
     db = _get_db()
     if "submitter" not in event:
         return http_result(403, "missing submitter")

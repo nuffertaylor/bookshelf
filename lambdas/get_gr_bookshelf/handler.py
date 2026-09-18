@@ -2,6 +2,7 @@ import os
 import feedparser
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
 from bookshelf.bookshelf import convertISBNtoISBN13
+from bookshelf.http import http_result, parse_event
 
 _db = None
 
@@ -79,12 +80,10 @@ def which_books_found(db, bookList):
 
 
 def lambda_handler(event, context):
+    event = parse_event(event)
     db = _get_db()
     books = get_books_from_shelf(event["userid"], event["shelfname"])
     print("looking for " + str(len(books)) + " books")
     found, unfound = which_books_found(db, books)
     print("found images for " + str(len(found)) + " books")
-    return {
-        "statusCode": 200,
-        "body": {"found": found, "unfound": unfound},
-    }
+    return http_result(200, {"found": found, "unfound": unfound})

@@ -1,5 +1,6 @@
 import os
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
+from bookshelf.http import http_result
 
 _db = None
 
@@ -13,4 +14,4 @@ def _get_db():
 
 def lambda_handler(event, context):
     db = _get_db()
-    return {"statusCode": 200, "body": db.get_leaderboard()}
+    return http_result(200, db.get_leaderboard())

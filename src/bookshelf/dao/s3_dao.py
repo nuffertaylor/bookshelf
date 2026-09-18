@@ -5,8 +5,9 @@ import os
 from PIL import Image
 
 
-s3 = boto3.resource('s3')
-s3_client = boto3.client('s3')
+_endpoint_url = os.getenv('S3_ENDPOINT_URL') or None
+s3 = boto3.resource('s3', endpoint_url=_endpoint_url)
+s3_client = boto3.client('s3', endpoint_url=_endpoint_url)
 
 
 def upload_file(file_name, bucket="bookshelf-spines", object_name=None):
