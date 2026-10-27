@@ -1,7 +1,8 @@
 import os
+
 import feedparser
+from bookshelf.bookshelf import convertISBNtoISBN13, which_books_found
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
-from bookshelf.bookshelf import convertISBNtoISBN13
 from bookshelf.http import http_result, parse_event
 
 _db = None
@@ -37,46 +38,6 @@ def get_books_from_shelf(userid, shelfname):
             books.append(book)
         page_counter += 1
     return books
-
-
-def which_books_found(db, bookList):
-    all_spines = db.get_spines_batch_by_title_author(bookList)
-
-    spine_lookup = {}
-    book_id_lookup = {}
-    for spine in all_spines:
-        key = (spine["title"].lower().strip() if spine["title"] else "", spine["author"].lower().strip() if spine["author"] else "")
-        if key not in spine_lookup:
-            spine_lookup[key] = []
-        spine_lookup[key].append(spine)
-        bid = str(spine.get("book_id", ""))
-        if bid:
-            if bid not in book_id_lookup:
-                book_id_lookup[bid] = []
-            book_id_lookup[bid].append(spine)
-
-    unfound = []
-    found = []
-
-    for b in bookList:
-        key = (b["title"].lower().strip() if b["title"] else "", b["author"].lower().strip() if b["author"] else "")
-        spines = spine_lookup.get(key, []) or book_id_lookup.get(str(b.get("book_id", "")), [])
-
-        if len(spines) == 0:
-            unfound.append(b)
-        else:
-            matching_book_id = []
-            other_spines = []
-            for spine in spines:
-                spine_copy = spine.copy()
-                spine_copy.update(b)
-                if str(spine_copy["book_id"]) == str(b["book_id"]):
-                    matching_book_id.append(spine_copy)
-                else:
-                    other_spines.append(spine_copy)
-            found.append(matching_book_id + other_spines)
-
-    return found, unfound
 
 
 def lambda_handler(event, context):
