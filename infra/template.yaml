@@ -111,6 +111,19 @@ Resources:
             Path: /getgrbookshelf
             Method: get
 
+  ImportGRLibraryCsvFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: importGRLibraryCsv
+      CodeUri: ../lambdas/import_gr_library_csv/
+      Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /importgrlibrary
+            Method: post
+
   GetGRBookDetailsFunction:
     Type: AWS::Serverless::Function
     Properties:
