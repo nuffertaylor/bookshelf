@@ -31,6 +31,10 @@ If you're using Colima instead of Docker Desktop, SAM needs to know the socket l
 DOCKER_HOST=unix://${HOME}/.colima/default/docker.sock
 ```
 
+### Windows
+
+See [docs/windows-setup.md](docs/windows-setup.md) for a full walkthrough (the Makefile targets are macOS-specific).
+
 ### Start local services
 
 ```bash
