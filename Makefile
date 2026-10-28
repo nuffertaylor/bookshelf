@@ -19,10 +19,10 @@ local: layer-deps
 	    --port 3001
 
 test:
-	pytest tests/
+	uv run pytest tests/
 
 lint:
-	ruff check .
+	uv run ruff check .
 
 deploy:
 	cp local-dev/layer-requirements.txt src/requirements.txt
