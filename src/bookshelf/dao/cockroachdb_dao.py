@@ -2,6 +2,7 @@ import os
 import psycopg2
 import time
 import uuid
+from contextlib import contextmanager, suppress
 
 
 class CockroachDAO:
@@ -38,6 +39,7 @@ class CockroachDAO:
             template = "An exception of type {0} occurred. Arguments:\n{1!r}"
             message = template.format(type(ex).__name__, ex.args)
             print(message)
+            self._rollback()
             return False
 
     def exec_statement_fetch(self, stmt, args=None):
@@ -55,7 +57,28 @@ class CockroachDAO:
             template = "An exception of type {0} occurred. Arguments:\n{1!r}"
             message = template.format(type(ex).__name__, ex.args)
             print(message)
+            self._rollback()
             return False
+
+    def _rollback(self):
+        with suppress(Exception):
+            self.conn.rollback()
+
+    @contextmanager
+    def transaction(self):
+        """A real transaction: `with db.transaction() as cur:`. Commits once on a clean exit, rolls
+        back on any exception (which is re-raised). Unlike exec_statement it never commits
+        intermediate statements and never swallows errors, so SELECT ... FOR UPDATE row locks are
+        held until the block ends."""
+        cur = self.conn.cursor()
+        try:
+            yield cur
+            self.conn.commit()
+        except BaseException:
+            self._rollback()
+            raise
+        finally:
+            cur.close()
 
     def validate_uuid(self, uuid_to_test):
         try:
@@ -68,11 +91,11 @@ class CockroachDAO:
         create_bookshelf_users_sql = """
         CREATE TABLE IF NOT EXISTS bookshelf_users (
           username VARCHAR ( 50 ) PRIMARY KEY,
-          hashedPassword VARCHAR ( 255 ) NOT NULL,
-          email VARCHAR ( 255 ) UNIQUE NOT NULL,
+          hashedPassword VARCHAR ( 255 ) NULL,
+          email VARCHAR ( 255 ) UNIQUE NULL,
           authtoken VARCHAR ( 100 ) NOT NULL,
           expiry INT NOT NULL,
-          salt VARCHAR ( 100 ) NOT NULL,
+          salt VARCHAR ( 100 ) NULL,
           ip VARCHAR ( 24 ),
           banned BOOLEAN NOT NULL,
           goodreads_id STRING
@@ -98,7 +121,7 @@ class CockroachDAO:
         create_bookshelf_sql = """
         CREATE TABLE IF NOT EXISTS bookshelf (
           upload_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          book_id INT NOT NULL,
+          book_id INT NULL,
           title STRING NOT NULL,
           author STRING NULL,
           dimensions STRING NOT NULL,
@@ -111,10 +134,12 @@ class CockroachDAO:
           submitter STRING NOT NULL,
           rating INT NULL,
           flagged BOOLEAN NULL,
-          timestamp INT NULL
+          timestamp INT NULL,
+          hardcover_book_id INT NULL
         );
         """
         self.exec_statement(create_bookshelf_sql)
+        self.exec_statement("CREATE INDEX IF NOT EXISTS bookshelf_hardcover_book_id_idx ON bookshelf (hardcover_book_id)")
 
     def create_visitor_table(self):
         create_visitor_table_sql = """
@@ -149,7 +174,7 @@ class CockroachDAO:
         create_bookshelf_sql = """
         CREATE TABLE IF NOT EXISTS unfound_to_upload (
           upload_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          book_id INT NOT NULL,
+          book_id INT NULL,
           title STRING NOT NULL,
           author STRING NULL,
           isbn STRING NULL,
@@ -157,10 +182,42 @@ class CockroachDAO:
           pubDate STRING NULL,
           owner STRING NOT NULL,
           uploaded BOOLEAN NULL,
-          timestamp INT NULL
+          timestamp INT NULL,
+          hardcover_book_id INT NULL
         );
         """
         self.exec_statement(create_bookshelf_sql)
+
+    def create_hardcover_connections_table(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS hardcover_connections (
+          username           STRING PRIMARY KEY REFERENCES bookshelf_users(username),
+          hardcover_id       BIGINT UNIQUE NOT NULL,
+          hardcover_username STRING NOT NULL,
+          access_token_enc   STRING NOT NULL,
+          refresh_token_enc  STRING NOT NULL,
+          access_expires_at  INT NOT NULL,
+          scopes             STRING NOT NULL,
+          needs_reauth       BOOLEAN NOT NULL DEFAULT false,
+          created_at         INT NOT NULL,
+          updated_at         INT NOT NULL
+        );
+        """
+        self.exec_statement(sql)
+
+    def create_oauth_states_table(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS oauth_states (
+          state         STRING PRIMARY KEY,
+          code_verifier STRING NOT NULL,
+          mode          STRING NOT NULL,
+          username      STRING NULL,
+          created_at    INT NOT NULL,
+          expires_at    INT NOT NULL,
+          used          BOOLEAN NOT NULL DEFAULT false
+        );
+        """
+        self.exec_statement(sql)
 
     def format_shelf_bg_tuple(self, x):
         return {
@@ -240,29 +297,38 @@ class CockroachDAO:
         sql = "UPDATE visitors SET num_visits = %s, timestamp = %s WHERE visitor_id = %s"
         return self.exec_statement(sql, (str(prev_visits + 1), str(int(time.time())), visitor_id))
 
+    @staticmethod
+    def _id_or_none(value):
+        """Normalise an id from a request (int, numeric string, '' or None) to int or None."""
+        if value is None or value == "":
+            return None
+        return int(value)
+
     def add_book(self, book):
+        book_id = self._id_or_none(book.get("book_id"))
+        hardcover_book_id = self._id_or_none(book.get("hardcover_book_id"))
         sql = """
               INSERT INTO bookshelf
-              (book_id, title, author, dimensions, fileName, genre, isbn, isbn13, pubDate, submitter, domColor, rating, timestamp)
-              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+              (book_id, title, author, dimensions, fileName, genre, isbn, isbn13, pubDate, submitter, domColor, rating, timestamp, hardcover_book_id)
+              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
               RETURNING upload_id
               """
-        res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["authorName"], book["dimensions"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], book["domColor"], "0", str(int(time.time()))))
+        res = self.exec_statement_fetch(sql, (book_id, book["title"], book["authorName"], book["dimensions"], book["fileName"], book["genre"], book["isbn"], book["isbn13"], book["pubDate"], book["username"], book["domColor"], "0", str(int(time.time())), hardcover_book_id))
         u_id = res[0]
         if type(u_id) == list:
             u_id = u_id[0]
-        self.mark_unfound_as_uploaded(book["book_id"])
+        self.mark_unfound_as_uploaded(book_id, hardcover_book_id)
         return {"upload_id": u_id}
 
     def add_unfound_to_upload(self, book, username):
         self.create_unfound_to_upload_table()
         sql = """
               INSERT INTO unfound_to_upload
-              (book_id, title, author, isbn, isbn13, pubDate, owner, uploaded, timestamp)
-              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+              (book_id, title, author, isbn, isbn13, pubDate, owner, uploaded, timestamp, hardcover_book_id)
+              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
               RETURNING upload_id
               """
-        res = self.exec_statement_fetch(sql, (book["book_id"], book["title"], book["author"], book["isbn"], book["isbn13"], book["pubDate"], username, False, str(int(time.time()))))
+        res = self.exec_statement_fetch(sql, (self._id_or_none(book.get("book_id")), book["title"], book["author"], book["isbn"], book["isbn13"], book["pubDate"], username, False, str(int(time.time())), self._id_or_none(book.get("hardcover_book_id"))))
         u_id = res[0]
         if type(u_id) == list:
             u_id = u_id[0]
@@ -277,35 +343,60 @@ class CockroachDAO:
             return self.format_book_tuple(res_list[0])
         return False
 
-    def has_username_uploaded_book(self, username, book_id):
-        sql = "SELECT * FROM bookshelf WHERE submitter = %s AND book_id = %s"
-        res = self.exec_statement_fetch(sql, (username, book_id))
-        if len(res) > 0:
+    @staticmethod
+    def _id_match_clause(book_id, hardcover_book_id):
+        """('(book_id = %s OR hardcover_book_id = %s)', params) using whichever ids are present,
+        or (None, []) when neither is."""
+        clauses = []
+        params = []
+        if book_id is not None:
+            clauses.append("book_id = %s")
+            params.append(book_id)
+        if hardcover_book_id is not None:
+            clauses.append("hardcover_book_id = %s")
+            params.append(hardcover_book_id)
+        if not clauses:
+            return None, []
+        return "(" + " OR ".join(clauses) + ")", params
+
+    def get_book_by_ids(self, book_id=None, hardcover_book_id=None):
+        """First bookshelf row matching either id (whichever is present), else False."""
+        clause, params = self._id_match_clause(self._id_or_none(book_id), self._id_or_none(hardcover_book_id))
+        if clause is None:
+            return False
+        res = self.exec_statement_fetch("SELECT * FROM bookshelf WHERE " + clause + " LIMIT 1", tuple(params))
+        if res:
             return self.format_book_tuple(res[0])
         return False
 
-    def has_user_saved_unfound(self, username, book_id):
-        sql = "SELECT * FROM unfound_to_upload WHERE owner = %s AND book_id = %s"
-        res = self.exec_statement_fetch(sql, (username, book_id))
-        if len(res) > 0:
-            return True
+    def has_username_uploaded_book(self, username, book_id=None, hardcover_book_id=None):
+        clause, params = self._id_match_clause(self._id_or_none(book_id), self._id_or_none(hardcover_book_id))
+        if clause is None:
+            return False
+        sql = "SELECT * FROM bookshelf WHERE submitter = %s AND " + clause
+        res = self.exec_statement_fetch(sql, (username, *params))
+        if res and len(res) > 0:
+            return self.format_book_tuple(res[0])
         return False
 
-    def get_book_batch(self, book_batch):
-        sql = "SELECT * FROM bookshelf WHERE book_id IN ("
-        percentS = ""
-        for i in range(len(book_batch)):
-            percentS += "%s"
-            if i != len(book_batch) - 1:
-                percentS += ", "
-        sql += percentS + ") OR title IN (" + percentS + ")"
+    def has_user_saved_unfound(self, username, book_id=None, hardcover_book_id=None):
+        clause, params = self._id_match_clause(self._id_or_none(book_id), self._id_or_none(hardcover_book_id))
+        if clause is None:
+            return False
+        sql = "SELECT * FROM unfound_to_upload WHERE owner = %s AND " + clause
+        res = self.exec_statement_fetch(sql, (username, *params))
+        return bool(res)
 
-        book_ids_and_titles = []
-        for b in book_batch:
-            book_ids_and_titles.append(b["book_id"])
-        for b in book_batch:
-            book_ids_and_titles.append(b["title"])
-        res = self.exec_statement_fetch(sql, tuple(book_ids_and_titles))
+    def get_book_batch(self, book_batch):
+        percentS = ", ".join(["%s"] * len(book_batch))
+        sql = "SELECT * FROM bookshelf WHERE book_id IN (" + percentS + ") OR title IN (" + percentS + ")"
+
+        params = [b.get("book_id") for b in book_batch] + [b["title"] for b in book_batch]
+        hardcover_ids = [b["hardcover_book_id"] for b in book_batch if b.get("hardcover_book_id") is not None]
+        if hardcover_ids:
+            sql += " OR hardcover_book_id IN (" + ", ".join(["%s"] * len(hardcover_ids)) + ")"
+            params.extend(hardcover_ids)
+        res = self.exec_statement_fetch(sql, tuple(params))
         return [self.format_book_tuple(r) for r in res]
 
     def get_spines_by_title_author(self, title, author):
@@ -326,18 +417,25 @@ class CockroachDAO:
         title_author_conditions = []
         params = []
         book_ids = []
+        hardcover_ids = []
         for book in book_list:
             title_author_conditions.append("(LOWER(TRIM(title)) = LOWER(TRIM(%s)) AND LOWER(TRIM(author)) = LOWER(TRIM(%s)))")
             params.append(book["title"])
             params.append(book["author"])
             if book.get("book_id"):
                 book_ids.append(book["book_id"])
+            if book.get("hardcover_book_id") is not None:
+                hardcover_ids.append(book["hardcover_book_id"])
 
         sql = "SELECT * FROM bookshelf WHERE " + " OR ".join(title_author_conditions)
         if book_ids:
             placeholders = ", ".join(["%s"] * len(book_ids))
             sql += f" OR book_id IN ({placeholders})"
             params.extend(book_ids)
+        if hardcover_ids:
+            placeholders = ", ".join(["%s"] * len(hardcover_ids))
+            sql += f" OR hardcover_book_id IN ({placeholders})"
+            params.extend(hardcover_ids)
 
         res = self.exec_statement_fetch(sql, tuple(params))
         if not res:
@@ -372,6 +470,8 @@ class CockroachDAO:
             "submitter": book_tuple[11],
             "rating": book_tuple[12],
             "flagged": book_tuple[13],
+            # index 14 is `timestamp` (not exposed); hardcover_book_id was appended last
+            "hardcover_book_id": book_tuple[15] if len(book_tuple) > 15 else None,
         }
 
     def format_unfound_to_upload_tuple(self, book_tuple):
@@ -386,6 +486,7 @@ class CockroachDAO:
             "owner": book_tuple[7],
             "uploaded": book_tuple[8],
             "timestamp": book_tuple[9],
+            "hardcover_book_id": book_tuple[10] if len(book_tuple) > 10 else None,
         }
 
     def format_shelf_image_tuple(self, shelf_image_tuple):
@@ -417,7 +518,11 @@ class CockroachDAO:
 
     def add_unfound_to_uploads(self, bookList, username):
         for book in bookList:
-            if self.has_user_saved_unfound(username, book["book_id"]) or self.get_book_by("book_id", book["book_id"]):
+            book_id = book.get("book_id")
+            hardcover_book_id = book.get("hardcover_book_id")
+            if self._id_or_none(book_id) is None and self._id_or_none(hardcover_book_id) is None:
+                continue
+            if self.has_user_saved_unfound(username, book_id, hardcover_book_id) or self.get_book_by_ids(book_id, hardcover_book_id):
                 continue
             self.add_unfound_to_upload(book, username)
 
@@ -498,7 +603,140 @@ class CockroachDAO:
             return False
         if int(time.time()) > int(user["expiry"]):
             return False
-        return True
+        return not user["banned"]
+
+    # ---- Hardcover OAuth accounts -------------------------------------------------------------
+
+    def username_taken(self, username):
+        """Case-insensitive check (get_user is an exact match). Raises on a DB error rather than
+        reporting a name as free."""
+        res = self.exec_statement_fetch("SELECT 1 FROM bookshelf_users WHERE LOWER(username) = LOWER(%s) LIMIT 1", (username,))
+        if res is False:
+            raise RuntimeError("database error while checking username")
+        return len(res) > 0
+
+    def email_taken(self, email):
+        res = self.exec_statement_fetch("SELECT 1 FROM bookshelf_users WHERE LOWER(email) = LOWER(%s) LIMIT 1", (email,))
+        if res is False:
+            raise RuntimeError("database error while checking email")
+        return len(res) > 0
+
+    def create_oauth_user(self, username, email, authtoken, expiry):
+        """Insert a password-less account. Returns False (not an exception) on any failure,
+        e.g. a concurrent insert of the same username."""
+        sql = """
+          INSERT INTO bookshelf_users (username, hashedPassword, email, authtoken, expiry, salt, ip, banned)
+          VALUES (%s, NULL, %s, %s, %s, NULL, NULL, FALSE)
+        """
+        return self.exec_statement(sql, (username, email, authtoken, expiry))
+
+    def delete_user(self, username):
+        """Used only to undo a half-created OAuth account."""
+        return self.exec_statement("DELETE FROM bookshelf_users WHERE username = %s", (username,))
+
+    @staticmethod
+    def _format_connection(row):
+        return {
+            "username": row[0],
+            "hardcover_id": row[1],
+            "hardcover_username": row[2],
+            "access_token_enc": row[3],
+            "refresh_token_enc": row[4],
+            "access_expires_at": row[5],
+            "scopes": row[6],
+            "needs_reauth": row[7],
+        }
+
+    _CONNECTION_COLS = ("username, hardcover_id, hardcover_username, access_token_enc, refresh_token_enc, "
+                        "access_expires_at, scopes, needs_reauth")
+
+    def get_hardcover_connection(self, username):
+        res = self.exec_statement_fetch(
+            "SELECT " + self._CONNECTION_COLS + " FROM hardcover_connections WHERE username = %s", (username,))
+        if not res:
+            return False
+        return self._format_connection(res[0])
+
+    def get_user_by_hardcover_id(self, hardcover_id):
+        """The bookshelf user linked to this Hardcover user id, or False. The id is the identity key;
+        never look accounts up by username or email."""
+        res = self.exec_statement_fetch("SELECT username FROM hardcover_connections WHERE hardcover_id = %s", (hardcover_id,))
+        if not res:
+            return False
+        return self.get_user(res[0][0])
+
+    def upsert_hardcover_connection(self, username, hardcover_id, hardcover_username, access_token_enc,
+                                    refresh_token_enc, access_expires_at, scopes):
+        """Insert or replace this account's connection (clears needs_reauth). Returns False if the
+        hardcover_id belongs to a different account (UNIQUE violation) or on any DB error."""
+        now = int(time.time())
+        sql = """
+          INSERT INTO hardcover_connections
+          (username, hardcover_id, hardcover_username, access_token_enc, refresh_token_enc,
+           access_expires_at, scopes, needs_reauth, created_at, updated_at)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, false, %s, %s)
+          ON CONFLICT (username) DO UPDATE SET
+            hardcover_id = EXCLUDED.hardcover_id,
+            hardcover_username = EXCLUDED.hardcover_username,
+            access_token_enc = EXCLUDED.access_token_enc,
+            refresh_token_enc = EXCLUDED.refresh_token_enc,
+            access_expires_at = EXCLUDED.access_expires_at,
+            scopes = EXCLUDED.scopes,
+            needs_reauth = false,
+            updated_at = EXCLUDED.updated_at
+        """
+        return self.exec_statement(sql, (username, hardcover_id, hardcover_username, access_token_enc,
+                                         refresh_token_enc, access_expires_at, scopes, now, now))
+
+    def mark_hardcover_needs_reauth(self, username):
+        return self.exec_statement(
+            "UPDATE hardcover_connections SET needs_reauth = true, updated_at = %s WHERE username = %s",
+            (int(time.time()), username))
+
+    # Transaction-scoped helpers: take the cursor from `with db.transaction() as cur:`.
+
+    def lock_hardcover_connection(self, cur, username):
+        """SELECT ... FOR UPDATE; a concurrent caller blocks here until this transaction ends."""
+        cur.execute("SELECT " + self._CONNECTION_COLS + " FROM hardcover_connections WHERE username = %s FOR UPDATE", (username,))
+        row = cur.fetchone()
+        return self._format_connection(row) if row else False
+
+    def save_hardcover_tokens(self, cur, username, access_token_enc, refresh_token_enc, access_expires_at, scopes):
+        cur.execute(
+            """UPDATE hardcover_connections
+               SET access_token_enc = %s, refresh_token_enc = %s, access_expires_at = %s, scopes = %s,
+                   needs_reauth = false, updated_at = %s
+               WHERE username = %s""",
+            (access_token_enc, refresh_token_enc, access_expires_at, scopes, int(time.time()), username))
+
+    def set_hardcover_needs_reauth(self, cur, username):
+        cur.execute("UPDATE hardcover_connections SET needs_reauth = true, updated_at = %s WHERE username = %s",
+                    (int(time.time()), username))
+
+    # ---- OAuth state --------------------------------------------------------------------------
+
+    def delete_expired_oauth_states(self, now):
+        return self.exec_statement("DELETE FROM oauth_states WHERE expires_at < %s", (now,))
+
+    def create_oauth_state(self, state, code_verifier, mode, username, created_at, expires_at):
+        sql = """
+          INSERT INTO oauth_states (state, code_verifier, mode, username, created_at, expires_at, used)
+          VALUES (%s, %s, %s, %s, %s, %s, false)
+        """
+        return self.exec_statement(sql, (state, code_verifier, mode, username, created_at, expires_at))
+
+    def consume_oauth_state(self, state, now):
+        """Atomically mark a state used and return its row, or None if unknown, expired or already
+        used. A single UPDATE ... RETURNING, so two concurrent callbacks cannot both win."""
+        sql = """
+          UPDATE oauth_states SET used = true
+          WHERE state = %s AND used = false AND expires_at > %s
+          RETURNING code_verifier, mode, username
+        """
+        res = self.exec_statement_fetch(sql, (state, now))
+        if not res:
+            return None
+        return {"code_verifier": res[0][0], "mode": res[0][1], "username": res[0][2]}
 
     def get_leaderboard(self):
         sql = """
@@ -538,9 +776,12 @@ class CockroachDAO:
         res = self.exec_statement_fetch(sql, (owner, False))
         return self.format_unfound_to_upload_tuple_list(res)
 
-    def mark_unfound_as_uploaded(self, book_id):
-        sql = "UPDATE unfound_to_upload SET uploaded = %s WHERE book_id = %s"
-        return self.exec_statement(sql, (True, book_id))
+    def mark_unfound_as_uploaded(self, book_id=None, hardcover_book_id=None):
+        clause, params = self._id_match_clause(self._id_or_none(book_id), self._id_or_none(hardcover_book_id))
+        if clause is None:
+            return False
+        sql = "UPDATE unfound_to_upload SET uploaded = %s WHERE " + clause
+        return self.exec_statement(sql, (True, *params))
 
     def get_shelf_images_to_delete(self, longevity=1):
         allowedTimestamp = int(time.time()) - (longevity * 60 * 60 * 24)

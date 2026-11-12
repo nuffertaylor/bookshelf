@@ -23,10 +23,12 @@ def rand_str(num_char):
     return ''.join(random.choice("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(num_char))
 
 
-def create_filename(title, book_id, extension):
+def create_filename(title, book_id, extension, hardcover_book_id=None):
     t = ''.join(ch for ch in title if ch.isalnum())
     t = re.sub(r'[^\x00-\x7f]', r'', t)
-    return t + "-" + str(book_id) + "-" + rand_str(10) + "." + extension
+    # Goodreads ID when there is one, else "hc<hardcover id>".
+    id_part = str(book_id) if book_id not in (None, "") else "hc" + str(hardcover_book_id)
+    return t + "-" + id_part + "-" + rand_str(10) + "." + extension
 
 
 def get_ext_from_b64(b64str):
@@ -45,11 +47,24 @@ _error_message = "Something went wrong."
 
 def verify_required_values(event):
     global _error_message
-    required_items = ["image", "title", "book_id", "dimensions", "username", "authtoken"]
+    required_items = ["image", "title", "dimensions", "username", "authtoken"]
     for item in required_items:
         if (item not in event.keys()) or (event[item] is None) or (event[item] == ""):
             _error_message = f"Did not have the required item '{item}'."
             return False
+    # Either a Goodreads book_id or a hardcover_book_id identifies the book.
+    for item in ("book_id", "hardcover_book_id"):
+        if event.get(item) == "":
+            event[item] = None
+        if event.get(item) is not None:
+            try:
+                event[item] = int(event[item])
+            except (TypeError, ValueError):
+                _error_message = f"'{item}' must be an integer."
+                return False
+    if event.get("book_id") is None and event.get("hardcover_book_id") is None:
+        _error_message = "Did not have the required item 'book_id' or 'hardcover_book_id'."
+        return False
     return True
 
 
@@ -73,7 +88,7 @@ def create_and_upload_img(event):
     b64str = pad_b64_str(event["image"])
     decoded = b64decode(b64str)
     temp_file = BytesIO(decoded)
-    file_name = create_filename(event["title"], event["book_id"], extension)
+    file_name = create_filename(event["title"], event.get("book_id"), extension, event.get("hardcover_book_id"))
     if upload_fileobj(temp_file, object_name=file_name):
         return file_name
     return False
@@ -97,7 +112,7 @@ def lambda_handler(event, context):
         if not file_name:
             return http_result(500, "failed to upload spine for " + event["title"])
 
-    existing_record = db.has_username_uploaded_book(event["username"], event["book_id"])
+    existing_record = db.has_username_uploaded_book(event["username"], event.get("book_id"), event.get("hardcover_book_id"))
     if existing_record:
         if "replace_img" not in event:
             result = {

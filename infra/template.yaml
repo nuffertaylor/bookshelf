@@ -15,6 +15,33 @@ Parameters:
   AwsEndpointUrl:
     Type: String
     Default: ""
+  # --- Hardcover OAuth (plans/02-hardcover-oauth.md) ---
+  HardcoverClientId:
+    Type: String
+    Default: ""
+  HardcoverRedirectUri:
+    Type: String
+    Default: "http://localhost:3000/oauth/callback"
+  # Prod: ARN of the Secrets Manager secret holding the client secret (HardcoverClientSecret stays empty).
+  HardcoverSecretArn:
+    Type: String
+    Default: ""
+  # Local dev only: the client secret itself, passed from your shell by `make local`. Never commit a value.
+  HardcoverClientSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+  # KMS key id used to encrypt stored Hardcover tokens. The default is a placeholder that matches no
+  # real key: prod must pass the real key id, local dev the id of the LocalStack key.
+  KmsKeyId:
+    Type: String
+    Default: "00000000-0000-0000-0000-000000000000"
+  KmsEndpointUrl:
+    Type: String
+    Default: ""
+
+Conditions:
+  HasHardcoverSecretArn: !Not [!Equals [!Ref HardcoverSecretArn, ""]]
 
 Globals:
   Api:
@@ -32,10 +59,33 @@ Globals:
         SKIP_SSL_CERT: !Ref SkipSslCert
         PYTHONPATH: /opt/python:/opt
         S3_ENDPOINT_URL: !Ref AwsEndpointUrl
+        HARDCOVER_CLIENT_ID: !Ref HardcoverClientId
+        HARDCOVER_REDIRECT_URI: !Ref HardcoverRedirectUri
+        KMS_KEY_ID: !Ref KmsKeyId
+        KMS_ENDPOINT_URL: !Ref KmsEndpointUrl
     Layers:
       - !Ref BookshelfLayer
 
 Resources:
+  # KMS (encrypt/decrypt the one token key) and, when configured, read access to the client secret.
+  HardcoverAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+            Resource: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}
+          - !If
+            - HasHardcoverSecretArn
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref HardcoverSecretArn
+            - !Ref AWS::NoValue
+
   BookshelfLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -276,3 +326,95 @@ Resources:
           Properties:
             Path: /getbookspinesbysubmitter
             Method: get
+
+  HardcoverAuthStartFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: hardcoverAuthStart
+      CodeUri: ../lambdas/hardcover_auth_start/
+      Handler: handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /auth/hardcover/start
+            Method: post
+
+  HardcoverAuthCallbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: hardcoverAuthCallback
+      CodeUri: ../lambdas/hardcover_auth_callback/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          HARDCOVER_SECRET_ARN: !Ref HardcoverSecretArn
+          HARDCOVER_CLIENT_SECRET: !Ref HardcoverClientSecret
+      Policies:
+        - !Ref HardcoverAccessPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /auth/hardcover/callback
+            Method: post
+
+  LogoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: logout
+      CodeUri: ../lambdas/logout/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          HARDCOVER_SECRET_ARN: !Ref HardcoverSecretArn
+          HARDCOVER_CLIENT_SECRET: !Ref HardcoverClientSecret
+      Policies:
+        - !Ref HardcoverAccessPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /logout
+            Method: post
+
+  GetHardcoverShelvesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: getHardcoverShelves
+      CodeUri: ../lambdas/get_hardcover_shelves/
+      Handler: handler.lambda_handler
+      Timeout: 60
+      Environment:
+        Variables:
+          HARDCOVER_SECRET_ARN: !Ref HardcoverSecretArn
+          HARDCOVER_CLIENT_SECRET: !Ref HardcoverClientSecret
+      Policies:
+        - !Ref HardcoverAccessPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /hardcover/shelves
+            Method: post
+
+  GetHardcoverShelfFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: getHardcoverShelf
+      CodeUri: ../lambdas/get_hardcover_shelf/
+      Handler: handler.lambda_handler
+      MemorySize: 512
+      Timeout: 60
+      Environment:
+        Variables:
+          HARDCOVER_SECRET_ARN: !Ref HardcoverSecretArn
+          HARDCOVER_CLIENT_SECRET: !Ref HardcoverClientSecret
+      Policies:
+        - !Ref HardcoverAccessPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /hardcover/shelf
+            Method: post

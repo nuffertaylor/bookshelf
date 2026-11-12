@@ -215,27 +215,38 @@ def whichBooksFound(bookList, foundBooks):
 
 
 def which_books_found(db, bookList):
+    """Match requested books to stored spines.
+
+    Goodreads books carry `book_id`; Hardcover books carry `hardcover_book_id`. A Hardcover ID match
+    comes first and outranks title/author; spines without that ID still match by title and author.
+    Behaviour for books with only a Goodreads `book_id` is unchanged."""
     all_spines = db.get_spines_batch_by_title_author(bookList)
 
     spine_lookup = {}
     book_id_lookup = {}
+    hardcover_lookup = {}
     for spine in all_spines:
         key = (spine["title"].lower().strip() if spine["title"] else "", spine["author"].lower().strip() if spine["author"] else "")
         if key not in spine_lookup:
             spine_lookup[key] = []
         spine_lookup[key].append(spine)
-        bid = str(spine.get("book_id", ""))
-        if bid:
-            if bid not in book_id_lookup:
-                book_id_lookup[bid] = []
-            book_id_lookup[bid].append(spine)
+        if spine.get("book_id") is not None:
+            book_id_lookup.setdefault(str(spine["book_id"]), []).append(spine)
+        if spine.get("hardcover_book_id") is not None:
+            hardcover_lookup.setdefault(str(spine["hardcover_book_id"]), []).append(spine)
 
     unfound = []
     found = []
 
     for b in bookList:
         key = (b["title"].lower().strip() if b["title"] else "", b["author"].lower().strip() if b["author"] else "")
-        spines = spine_lookup.get(key, []) or book_id_lookup.get(str(b.get("book_id", "")), [])
+        hardcover_id = b.get("hardcover_book_id")
+        title_spines = spine_lookup.get(key, []) or book_id_lookup.get(str(b.get("book_id", "")), [])
+        spines = title_spines
+        if hardcover_id is not None:
+            by_hardcover = hardcover_lookup.get(str(hardcover_id), [])
+            seen = {str(s.get("upload_id")) for s in by_hardcover}
+            spines = by_hardcover + [s for s in title_spines if str(s.get("upload_id")) not in seen]
 
         if len(spines) == 0:
             unfound.append(b)
@@ -245,7 +256,11 @@ def which_books_found(db, bookList):
             for spine in spines:
                 spine_copy = spine.copy()
                 spine_copy.update(b)
-                if str(spine_copy["book_id"]) == str(b["book_id"]):
+                if hardcover_id is not None:
+                    is_exact = str(spine.get("hardcover_book_id")) == str(hardcover_id)
+                else:
+                    is_exact = str(spine_copy["book_id"]) == str(b["book_id"])
+                if is_exact:
                     matching_book_id.append(spine_copy)
                 else:
                     other_spines.append(spine_copy)

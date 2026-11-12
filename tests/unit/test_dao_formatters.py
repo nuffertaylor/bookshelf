@@ -29,3 +29,23 @@ def test_format_shelf_bg_tuple(mock_connect):
     result = dao.format_shelf_bg_tuple(bg_tuple)
     assert result["submitter"] == "testuser"
     assert result["filename"] == "bg.jpg"
+
+
+@patch("bookshelf.dao.cockroachdb_dao.psycopg2.connect")
+def test_format_book_tuple_hardcover_id_is_last_column(mock_connect):
+    mock_connect.return_value = MagicMock()
+    from bookshelf.dao.cockroachdb_dao import CockroachDAO
+    dao = CockroachDAO("postgresql://localhost/test")
+    base = (uuid.uuid4(), None, "My Book", "A", "9x6x1", "#ff0000", "f.jpg", "g", "i", "i13", "2020", "u", 4, False, 1700000000)
+    assert dao.format_book_tuple(base)["hardcover_book_id"] is None  # row from before the column existed
+    result = dao.format_book_tuple(base + (777,))
+    assert result["hardcover_book_id"] == 777 and result["book_id"] is None
+
+
+@patch("bookshelf.dao.cockroachdb_dao.psycopg2.connect")
+def test_format_unfound_tuple_hardcover_id(mock_connect):
+    mock_connect.return_value = MagicMock()
+    from bookshelf.dao.cockroachdb_dao import CockroachDAO
+    dao = CockroachDAO("postgresql://localhost/test")
+    row = (uuid.uuid4(), None, "T", "A", "i", "i13", "2020", "owner", False, 1700000000, 55)
+    assert dao.format_unfound_to_upload_tuple(row)["hardcover_book_id"] == 55

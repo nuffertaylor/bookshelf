@@ -13,6 +13,6 @@ services:
   localstack:
     image: localstack/localstack:2.3
     environment:
-      SERVICES: s3
+      SERVICES: s3,kms
     ports:
       - "4566:4566"

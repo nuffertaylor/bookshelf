@@ -12,10 +12,17 @@ layer-deps:
 
 local: layer-deps
 	sam build --template infra/template.yaml
-	DOCKER_HOST=unix://$(HOME)/.colima/default/docker.sock \
+	@# '@' keeps make from echoing the command, which can contain HARDCOVER_CLIENT_SECRET.
+	@# Export these in your shell first (never put the secret in a tracked file):
+	@#   KMS_KEY_ID (LocalStack key id), HARDCOVER_CLIENT_ID, HARDCOVER_CLIENT_SECRET
+	@DOCKER_HOST=unix://$(HOME)/.colima/default/docker.sock \
 	  AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
 	  sam local start-api \
 	    --parameter-overrides AwsEndpointUrl="http://host.docker.internal:4566" \
+	      KmsEndpointUrl="http://host.docker.internal:4566" \
+	      $(if $(KMS_KEY_ID),KmsKeyId="$(KMS_KEY_ID)") \
+	      $(if $(HARDCOVER_CLIENT_ID),HardcoverClientId="$(HARDCOVER_CLIENT_ID)") \
+	      $(if $(HARDCOVER_CLIENT_SECRET),HardcoverClientSecret="$(HARDCOVER_CLIENT_SECRET)") \
 	    --port 3001
 
 test:
@@ -33,4 +40,8 @@ deploy:
 		--parameter-overrides \
 		  DatabaseUrl="{{resolve:ssm:/bookshelf/database_url}}" \
 		  CertSecretArn="{{resolve:ssm:/bookshelf/cert_secret_arn}}" \
-		  SkipSslCert=""
+		  SkipSslCert="" \
+		  HardcoverClientId="{{resolve:ssm:/bookshelf/hardcover_client_id}}" \
+		  HardcoverSecretArn="{{resolve:ssm:/bookshelf/hardcover_secret_arn}}" \
+		  HardcoverRedirectUri="https://www.mybookshelf.dev/oauth/callback" \
+		  KmsKeyId="{{resolve:ssm:/bookshelf/kms_key_id}}"
