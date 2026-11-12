@@ -4,7 +4,6 @@ from bookshelf.image_opener.pil_image_opener import PILImageOpener
 from bookshelf.image_opener.s3_image_opener import S3ImageOpener
 from bookshelf.rand_col import getRandColor
 from random import random, choice
-import feedparser
 import copy
 import math
 import colorsys
