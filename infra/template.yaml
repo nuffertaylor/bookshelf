@@ -117,6 +117,7 @@ Resources:
       FunctionName: importGRLibraryCsv
       CodeUri: ../lambdas/import_gr_library_csv/
       Handler: handler.lambda_handler
+      MemorySize: 512
       Events:
         Api:
           Type: Api
