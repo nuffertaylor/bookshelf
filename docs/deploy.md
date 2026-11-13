@@ -91,10 +91,10 @@ sam deploy `
     Prefix="v2-" `
     DatabaseUrl="{{resolve:ssm:/bookshelf/database_url}}" `
     CertSecretArn="{{resolve:ssm:/bookshelf/cert_secret_arn}}" `
-    SkipSslCert=""
+    SkipSslCert="false"
 ```
 
-(`SkipSslCert=""` means "use the cert".)
+(`SkipSslCert="false"` means "use the cert". SAM rejects an empty value, and the app only skips the cert for `true`, `1` or `yes`.)
 
 When it finishes, read the API URL:
 
