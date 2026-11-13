@@ -3,6 +3,11 @@ Transform: AWS::Serverless-2016-10-31
 Description: Bookshelf Lambda functions
 
 Parameters:
+  # Prepended to every function name and the layer name. Leave empty for the production stack
+  # (names must match the live functions); use e.g. "test-" for a separate test stack.
+  Prefix:
+    Type: String
+    Default: ""
   DatabaseUrl:
     Type: String
     Default: postgresql://postgres:dev@host.docker.internal:5432/bookshelf
@@ -15,6 +20,9 @@ Parameters:
   AwsEndpointUrl:
     Type: String
     Default: ""
+
+Conditions:
+  HasCertSecretArn: !Not [!Equals [!Ref CertSecretArn, ""]]
 
 Globals:
   Api:
@@ -36,10 +44,31 @@ Globals:
       - !Ref BookshelfLayer
 
 Resources:
+  # Applied to every function: S3 access to the spines bucket (the bucket name is hardcoded in
+  # s3_dao.py) and read access to the DB SSL cert secret.
+  SharedAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+            Resource: !Sub arn:${AWS::Partition}:s3:::bookshelf-spines/*
+          - !If
+            - HasCertSecretArn
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref CertSecretArn
+            - !Ref AWS::NoValue
+
   BookshelfLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: bookshelf-shared
+      LayerName: !Sub "${Prefix}bookshelf-shared"
       ContentUri: ../src/
       CompatibleRuntimes:
         - python3.12
@@ -49,9 +78,11 @@ Resources:
   LoginRegisterFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: loginRegister
+      FunctionName: !Sub "${Prefix}loginRegister"
       CodeUri: ../lambdas/login_register/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -62,9 +93,11 @@ Resources:
   ValidateAuthtokenFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: validateAuthtoken
+      FunctionName: !Sub "${Prefix}validateAuthtoken"
       CodeUri: ../lambdas/validate_authtoken/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -75,9 +108,11 @@ Resources:
   UploadSpineFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: uploadSpine
+      FunctionName: !Sub "${Prefix}uploadSpine"
       CodeUri: ../lambdas/upload_spine/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -88,9 +123,11 @@ Resources:
   GenShelfFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: genShelf
+      FunctionName: !Sub "${Prefix}genShelf"
       CodeUri: ../lambdas/gen_shelf/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -101,9 +138,11 @@ Resources:
   GetGRBookshelfFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: getGRBookshelf
+      FunctionName: !Sub "${Prefix}getGRBookshelf"
       CodeUri: ../lambdas/get_gr_bookshelf/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -114,9 +153,11 @@ Resources:
   ImportGRLibraryCsvFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: importGRLibraryCsv
+      FunctionName: !Sub "${Prefix}importGRLibraryCsv"
       CodeUri: ../lambdas/import_gr_library_csv/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -127,10 +168,12 @@ Resources:
   GetGRBookDetailsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: getGRBookDetails
+      FunctionName: !Sub "${Prefix}getGRBookDetails"
       CodeUri: ../lambdas/get_gr_book_details/
       Handler: index.handler
-      Runtime: nodejs20.x
+      Policies:
+        - !Ref SharedAccessPolicy
+      Runtime: nodejs22.x
       Layers: []
       Events:
         Api:
@@ -142,9 +185,11 @@ Resources:
   SetGoodreadsIdFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: setGoodreadsId
+      FunctionName: !Sub "${Prefix}setGoodreadsId"
       CodeUri: ../lambdas/set_goodreads_id/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -155,23 +200,29 @@ Resources:
   AddShelfBgFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: addShelfBg
+      FunctionName: !Sub "${Prefix}addShelfBg"
       CodeUri: ../lambdas/add_shelf_bg/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
 
   GetShelfBgsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: getShelfBgs
+      FunctionName: !Sub "${Prefix}getShelfBgs"
       CodeUri: ../lambdas/get_shelf_bgs/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
 
   AddUnfoundToUploadFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: addUnfoundToUpload
+      FunctionName: !Sub "${Prefix}addUnfoundToUpload"
       CodeUri: ../lambdas/add_unfound_to_upload/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -182,9 +233,11 @@ Resources:
   GetUnfoundToUploadFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: getUnfoundToUpload
+      FunctionName: !Sub "${Prefix}getUnfoundToUpload"
       CodeUri: ../lambdas/get_unfound_to_upload/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -195,16 +248,20 @@ Resources:
   CalcDomColorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: calcDomColor
+      FunctionName: !Sub "${Prefix}calcDomColor"
       CodeUri: ../lambdas/calc_dom_color/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
 
   CleanS3ShelvesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: cleanS3Shelves
+      FunctionName: !Sub "${Prefix}cleanS3Shelves"
       CodeUri: ../lambdas/clean_s3_shelves/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Schedule:
           Type: Schedule
@@ -214,9 +271,11 @@ Resources:
   LeaderboardFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: leaderboard
+      FunctionName: !Sub "${Prefix}leaderboard"
       CodeUri: ../lambdas/leaderboard/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -227,9 +286,11 @@ Resources:
   VisitFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: visit
+      FunctionName: !Sub "${Prefix}visit"
       CodeUri: ../lambdas/visit/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -240,9 +301,11 @@ Resources:
   SetShelfOwnerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: setShelfOwner
+      FunctionName: !Sub "${Prefix}setShelfOwner"
       CodeUri: ../lambdas/set_shelf_owner/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -253,9 +316,11 @@ Resources:
   GetOwnerShelvesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: getOwnerShelves
+      FunctionName: !Sub "${Prefix}getOwnerShelves"
       CodeUri: ../lambdas/get_owner_shelves/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
@@ -266,12 +331,19 @@ Resources:
   GetSpinesBySubmitterFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: getSpinesBySubmitter
+      FunctionName: !Sub "${Prefix}getSpinesBySubmitter"
       CodeUri: ../lambdas/get_spines_by_submitter/
       Handler: handler.lambda_handler
+      Policies:
+        - !Ref SharedAccessPolicy
       Events:
         Api:
           Type: Api
           Properties:
             Path: /getbookspinesbysubmitter
             Method: get
+
+Outputs:
+  ApiUrl:
+    Description: Base URL of the API (use as REACT_APP_API_URL, with a trailing slash)
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/"
