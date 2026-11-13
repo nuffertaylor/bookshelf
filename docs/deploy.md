@@ -45,28 +45,18 @@ aws lambda get-function-configuration --function-name loginRegister --query "Env
 
 It has a `DATABASE_URL` and nothing else. There is no `CERT_SECRET_ARN` because the old lambdas bundle the CockroachDB certificate (`root.crt`) inside their zip. The new code reads it from Secrets Manager, so you need to create that secret.
 
-**a. Get `root.crt`.** Easiest is to take it from the live lambda's zip. Use a new, empty folder:
+**a. Create the secret** from `root.crt`. If you already have the file, put it in the repo root (`*.crt` is gitignored, so it won't be committed), and run this from there:
 
 ```powershell
-$dir = "$HOME\bookshelf-cert"
-New-Item -ItemType Directory -Path $dir
-$url = aws lambda get-function --function-name loginRegister --query Code.Location --output text
-curl.exe -s -o "$dir\code.zip" $url
-Expand-Archive "$dir\code.zip" -DestinationPath "$dir\code"
-Get-ChildItem "$dir\code" -Recurse -Filter *.crt
+Test-Path .\root.crt
+aws secretsmanager create-secret --name bookshelf/db-cert --secret-string file://root.crt
 ```
 
-The last command should list `root.crt`. If it doesn't, look in the layer or in your old deployment folder, or download the CA cert from the CockroachDB Cloud console (cluster, Connect dialog).
+`Test-Path` must print `True`. Note the `ARN` in the output of the second command.
 
-**b. Create the secret** (use the real path printed above):
+If you don't have the file, it's inside the live lambda's zip (`aws lambda get-function --function-name loginRegister --query Code.Location --output text` prints a download URL), or you can download the CA cert from the CockroachDB Cloud console (cluster, Connect dialog).
 
-```powershell
-aws secretsmanager create-secret --name bookshelf/db-cert --secret-string file://$HOME\bookshelf-cert\code\root.crt
-```
-
-Note the `ARN` in the output.
-
-**c. Store both values as SSM parameters**, replacing the bracketed values (without the brackets). `[DATABASE_URL]` is the full string from the first command:
+**b. Store both values as SSM parameters**, replacing the bracketed values (without the brackets). `[DATABASE_URL]` is the full string from the first command:
 
 ```powershell
 aws ssm put-parameter --name /bookshelf/database_url --type String --value "[DATABASE_URL]"
@@ -75,7 +65,6 @@ aws ssm put-parameter --name /bookshelf/cert_secret_arn --type String --value "[
 
 The database URL contains a password and ends up in the lambdas' environment variables regardless (as it does today), so this adds no new exposure.
 
-**d. Clean up** the downloaded zip: `Remove-Item -Recurse $HOME\bookshelf-cert`.
 
 ## 3. Build (in a Linux container)
 
