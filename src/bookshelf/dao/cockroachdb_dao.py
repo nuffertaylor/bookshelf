@@ -6,7 +6,7 @@ import uuid
 
 class CockroachDAO:
     def __init__(self, db_url):
-        if os.getenv("SKIP_SSL_CERT"):
+        if os.getenv("SKIP_SSL_CERT", "").lower() in ("1", "true", "yes"):
             self.conn = psycopg2.connect(db_url)
         else:
             import boto3

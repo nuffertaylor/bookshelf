@@ -33,4 +33,4 @@ deploy:
 		--parameter-overrides \
 		  DatabaseUrl="{{resolve:ssm:/bookshelf/database_url}}" \
 		  CertSecretArn="{{resolve:ssm:/bookshelf/cert_secret_arn}}" \
-		  SkipSslCert=""
+		  SkipSslCert=false
