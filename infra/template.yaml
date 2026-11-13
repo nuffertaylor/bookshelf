@@ -4,7 +4,7 @@ Description: Bookshelf Lambda functions
 
 Parameters:
   # Prepended to every function name and the layer name. Leave empty for the production stack
-  # (names must match the live functions); use e.g. "test-" for a separate test stack.
+  # (names must match the live functions); use "v2-" while the old manually deployed functions still exist.
   Prefix:
     Type: String
     Default: ""
