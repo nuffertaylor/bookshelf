@@ -24,7 +24,7 @@ winget install -e --id Amazon.SAM-CLI          # if `sam` is missing
 winget install -e --id Docker.DockerDesktop    # if `docker` is missing
 ```
 
-If you installed anything, open a new PowerShell window so it's on your PATH. Start Docker Desktop and wait for "Engine running", then check that everything works:
+If you installed anything, open a new PowerShell window so it's on your PATH. In the VS Code terminal, a new terminal tab is not enough: quit VS Code completely and reopen it, or the new tools stay "not recognized". Start Docker Desktop and wait for "Engine running", then check that everything works:
 
 ```powershell
 docker run --rm hello-world
