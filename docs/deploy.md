@@ -35,24 +35,47 @@ If `aws sts get-caller-identity` fails with a credentials error (or you've never
 
 The IAM user needs to create CloudFormation stacks, Lambda, API Gateway, IAM roles/policies, S3 (SAM artifacts bucket) and SSM parameters. An admin user is simplest.
 
-## 2. Find the production DB settings
+## 2. Production DB settings and certificate
 
-The existing lambdas already hold the values. Read them from one of them:
+The existing `loginRegister` lambda holds the connection string:
 
 ```powershell
 aws lambda get-function-configuration --function-name loginRegister --query "Environment.Variables"
 ```
 
-Note `DATABASE_URL` and `CERT_SECRET_ARN`. (If `SKIP_SSL_CERT` is set there, tell me; the deploy command changes.)
+It has a `DATABASE_URL` and nothing else. There is no `CERT_SECRET_ARN` because the old lambdas bundle the CockroachDB certificate (`root.crt`) inside their zip. The new code reads it from Secrets Manager, so you need to create that secret.
 
-Store them as SSM parameters, replacing the bracketed values (without the brackets):
+**a. Get `root.crt`.** Easiest is to take it from the live lambda's zip. Use a new, empty folder:
+
+```powershell
+$dir = "$HOMEookshelf-cert"
+New-Item -ItemType Directory -Path $dir
+$url = aws lambda get-function --function-name loginRegister --query Code.Location --output text
+curl.exe -s -o "$dir\code.zip" $url
+Expand-Archive "$dir\code.zip" -DestinationPath "$dir\code"
+Get-ChildItem "$dir\code" -Recurse -Filter *.crt
+```
+
+The last command should list `root.crt`. If it doesn't, look in the layer or in your old deployment folder, or download the CA cert from the CockroachDB Cloud console (cluster, Connect dialog).
+
+**b. Create the secret** (use the real path printed above):
+
+```powershell
+aws secretsmanager create-secret --name bookshelf/db-cert --secret-string file://$HOMEookshelf-cert\codeoot.crt
+```
+
+Note the `ARN` in the output.
+
+**c. Store both values as SSM parameters**, replacing the bracketed values (without the brackets). `[DATABASE_URL]` is the full string from the first command:
 
 ```powershell
 aws ssm put-parameter --name /bookshelf/database_url --type String --value "[DATABASE_URL]"
-aws ssm put-parameter --name /bookshelf/cert_secret_arn --type String --value "[CERT_SECRET_ARN]"
+aws ssm put-parameter --name /bookshelf/cert_secret_arn --type String --value "[secret ARN]"
 ```
 
 The database URL contains a password and ends up in the lambdas' environment variables regardless (as it does today), so this adds no new exposure.
+
+**d. Clean up** the downloaded zip: `Remove-Item -Recurse $HOMEookshelf-cert`.
 
 ## 3. Build (in a Linux container)
 
