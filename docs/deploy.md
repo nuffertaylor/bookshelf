@@ -61,8 +61,7 @@ The last command should list `root.crt`. If it doesn't, look in the layer or in 
 **b. Create the secret** (use the real path printed above):
 
 ```powershell
-aws secretsmanager create-secret --name bookshelf/db-cert --secret-string file://$HOME\bookshelf-cert\code
-oot.crt
+aws secretsmanager create-secret --name bookshelf/db-cert --secret-string file://$HOME\bookshelf-cert\code\root.crt
 ```
 
 Note the `ARN` in the output.
