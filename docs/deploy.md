@@ -8,19 +8,30 @@ Run everything in PowerShell from the repo root, on the `refactor` branch (`git 
 
 ## 1. Prerequisites
 
+First check what is already installed:
+
 ```powershell
-winget install -e --id Amazon.AWSCLI
-winget install -e --id Amazon.SAM-CLI
-winget install -e --id Docker.DockerDesktop
+aws --version
+sam --version
+docker --version
 ```
 
-Open a new PowerShell window, start Docker Desktop (wait for "Engine running"), then:
+Any line that prints a version is fine, so skip its install. A line that errors with "not recognized" means the tool is missing, so install only that one:
 
 ```powershell
-aws configure          # access key, secret, region us-east-1
+winget install -e --id Amazon.AWSCLI           # if `aws` is missing
+winget install -e --id Amazon.SAM-CLI          # if `sam` is missing
+winget install -e --id Docker.DockerDesktop    # if `docker` is missing
+```
+
+If you installed anything, open a new PowerShell window so it's on your PATH. Start Docker Desktop and wait for "Engine running", then check that everything works:
+
+```powershell
+docker run --rm hello-world
 aws sts get-caller-identity
-sam --version; docker run --rm hello-world
 ```
+
+If `aws sts get-caller-identity` fails with a credentials error (or you've never configured the CLI on this machine), run `aws configure` (access key, secret, region `us-east-1`) and try again. If it prints an account ID, skip `aws configure`.
 
 The IAM user needs to create CloudFormation stacks, Lambda, API Gateway, IAM roles/policies, S3 (SAM artifacts bucket) and SSM parameters. An admin user is simplest.
 
