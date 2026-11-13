@@ -48,7 +48,7 @@ It has a `DATABASE_URL` and nothing else. There is no `CERT_SECRET_ARN` because 
 **a. Get `root.crt`.** Easiest is to take it from the live lambda's zip. Use a new, empty folder:
 
 ```powershell
-$dir = "$HOMEookshelf-cert"
+$dir = "$HOME\bookshelf-cert"
 New-Item -ItemType Directory -Path $dir
 $url = aws lambda get-function --function-name loginRegister --query Code.Location --output text
 curl.exe -s -o "$dir\code.zip" $url
@@ -61,7 +61,8 @@ The last command should list `root.crt`. If it doesn't, look in the layer or in 
 **b. Create the secret** (use the real path printed above):
 
 ```powershell
-aws secretsmanager create-secret --name bookshelf/db-cert --secret-string file://$HOMEookshelf-cert\codeoot.crt
+aws secretsmanager create-secret --name bookshelf/db-cert --secret-string file://$HOME\bookshelf-cert\code
+oot.crt
 ```
 
 Note the `ARN` in the output.
@@ -75,7 +76,7 @@ aws ssm put-parameter --name /bookshelf/cert_secret_arn --type String --value "[
 
 The database URL contains a password and ends up in the lambdas' environment variables regardless (as it does today), so this adds no new exposure.
 
-**d. Clean up** the downloaded zip: `Remove-Item -Recurse $HOMEookshelf-cert`.
+**d. Clean up** the downloaded zip: `Remove-Item -Recurse $HOME\bookshelf-cert`.
 
 ## 3. Build (in a Linux container)
 
