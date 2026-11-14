@@ -21,6 +21,7 @@ under it. One Hardcover book maps to many Goodreads ids (one per edition), so se
 resolving to the same Hardcover id is expected.
 """
 import argparse
+import http.client
 import json
 import os
 import sys
@@ -43,7 +44,10 @@ query ($platform: Int!, $ids: [String!]!) {
 
 
 def fetch_mappings(token, goodreads_ids):
-    """{goodreads_id(str): set(hardcover_book_id)} for one batch. Retries only on HTTP 429."""
+    """{goodreads_id(str): set(hardcover_book_id)} for one batch.
+
+    Retries (with a growing pause) on HTTP 429, HTTP 5xx and dropped or timed-out connections.
+    Anything else, such as 403 or a GraphQL error, stops the script."""
     payload = json.dumps({
         "query": QUERY,
         "variables": {"platform": GOODREADS_PLATFORM_ID, "ids": [str(i) for i in goodreads_ids]},
@@ -57,17 +61,24 @@ def fetch_mappings(token, goodreads_ids):
             with urllib.request.urlopen(req, timeout=30) as resp:
                 doc = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < 4:
+            if (e.code == 429 or e.code >= 500) and attempt < 4:
                 time.sleep(15 * (attempt + 1))
                 continue
             sys.exit(f"Hardcover returned HTTP {e.code} (403 means the token lacks read:catalog)")
+        except (urllib.error.URLError, http.client.HTTPException, OSError) as e:
+            # Connection dropped, reset or timed out. Safe to retry: the request only reads data.
+            if attempt < 4:
+                print(f"  connection problem ({type(e).__name__}); retrying in {5 * (attempt + 1)}s", flush=True)
+                time.sleep(5 * (attempt + 1))
+                continue
+            sys.exit(f"gave up after repeated connection problems: {e}")
         if doc.get("errors"):
             sys.exit("GraphQL error: " + str(doc["errors"][0].get("message")))
         result = {}
         for row in doc["data"]["book_mappings"]:
             result.setdefault(str(row["external_id"]), set()).add(int(row["book_id"]))
         return result
-    sys.exit("gave up after repeated rate limiting")
+    sys.exit("gave up after repeated rate limiting or server errors")
 
 
 def main():
