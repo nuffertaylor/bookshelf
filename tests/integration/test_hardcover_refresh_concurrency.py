@@ -59,8 +59,10 @@ def schema():
 
 def test_two_simultaneous_refreshes_spend_the_refresh_token_once(schema, monkeypatch):
     setup = _make_dao(schema)
+    # expiry stays under 2^31: INT is 32-bit on Postgres (64-bit on CockroachDB), and an out-of-range
+    # insert here is swallowed by the DAO, leaving no user row and a confusing foreign-key error later.
     setup.exec_statement(
-        "INSERT INTO bookshelf_users (username, authtoken, expiry, banned) VALUES ('alice', 't', 9999999999, false)")
+        "INSERT INTO bookshelf_users (username, authtoken, expiry, banned) VALUES ('alice', 't', 2000000000, false)")
     setup.upsert_hardcover_connection(
         "alice", 42, "alice_hc", token_crypto.encrypt("alice", "hc_at_old"),
         token_crypto.encrypt("alice", "hc_rt_old"), int(time.time()) - 5, "read:library")
