@@ -24,13 +24,24 @@ test:
 lint:
 	uv run ruff check .
 
+# Use the Colima socket only when it exists (macOS with Colima); Docker Desktop and CI use the default.
+DEPLOY_DOCKER_HOST := $(if $(wildcard $(HOME)/.colima/default/docker.sock),DOCKER_HOST=unix://$(HOME)/.colima/default/docker.sock)
+
+# Needs AWS credentials in the environment (CI assumes a role; locally use your profile).
+# See docs/deploy.md for the parameters this reads and the one-time AWS setup.
 deploy:
 	cp local-dev/layer-requirements.txt src/requirements.txt
-	DOCKER_HOST=unix://$(HOME)/.colima/default/docker.sock \
-	  sam build --use-container --template infra/template.yaml
+	$(DEPLOY_DOCKER_HOST) sam build --use-container --template infra/template.yaml
 	rm -f src/requirements.txt
 	sam deploy \
+		--stack-name bookshelf \
+		--region us-east-1 \
+		--resolve-s3 \
+		--capabilities CAPABILITY_IAM \
+		--no-confirm-changeset \
+		--no-fail-on-empty-changeset \
 		--parameter-overrides \
+		  Prefix="v2-" \
 		  DatabaseUrl="{{resolve:ssm:/bookshelf/database_url}}" \
 		  CertSecretArn="{{resolve:ssm:/bookshelf/cert_secret_arn}}" \
 		  SkipSslCert=false
