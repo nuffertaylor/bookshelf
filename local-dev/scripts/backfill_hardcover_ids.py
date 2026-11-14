@@ -30,6 +30,7 @@ import urllib.error
 import urllib.request
 
 import psycopg2
+import psycopg2.extras
 
 GRAPHQL_URL = "https://api.hardcover.app/v1/graphql"
 GOODREADS_PLATFORM_ID = 1
@@ -94,34 +95,60 @@ def main():
     if not token or not db_url:
         sys.exit("set HARDCOVER_TOKEN and DATABASE_URL in the environment")
 
-    conn = psycopg2.connect(db_url, sslrootcert=args.sslrootcert) if args.sslrootcert else psycopg2.connect(db_url)
+    def connect():
+        return psycopg2.connect(db_url, sslrootcert=args.sslrootcert) if args.sslrootcert else psycopg2.connect(db_url)
+
+    conn = connect()
     with conn.cursor() as cur:
         cur.execute("SELECT DISTINCT book_id FROM bookshelf WHERE book_id IS NOT NULL AND hardcover_book_id IS NULL ORDER BY book_id")
         goodreads_ids = [r[0] for r in cur.fetchall()]
     conn.commit()
     print(f"{len(goodreads_ids)} distinct Goodreads ids to resolve ({'APPLY' if args.apply else 'dry run'})")
 
+    def write_batch(pairs):
+        """One UPDATE for the whole batch. If the connection drops, reconnect and redo the batch: nothing
+        was committed, and the IS NULL condition makes a repeat harmless. Returns rows updated."""
+        nonlocal conn
+        for attempt in range(5):
+            try:
+                with conn.cursor() as cur:
+                    psycopg2.extras.execute_values(
+                        cur,
+                        "UPDATE bookshelf AS b SET hardcover_book_id = v.hc FROM (VALUES %s) AS v(gid, hc) "
+                        "WHERE b.book_id = v.gid AND b.hardcover_book_id IS NULL",
+                        pairs, page_size=len(pairs))
+                    changed = cur.rowcount
+                conn.commit()
+                return changed
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+                if attempt == 4:
+                    sys.exit(f"gave up after repeated database connection problems: {e}")
+                print(f"  database connection problem ({type(e).__name__}); reconnecting in {5 * (attempt + 1)}s", flush=True)
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                time.sleep(5 * (attempt + 1))
+                conn = connect()
+
     mapped = ambiguous = unmapped = updated_rows = 0
     for start in range(0, len(goodreads_ids), args.batch):
         batch = goodreads_ids[start:start + args.batch]
         mappings = fetch_mappings(token, batch)
-        with conn.cursor() as cur:
-            for gid in batch:
-                hc_ids = mappings.get(str(gid), set())
-                if not hc_ids:
-                    unmapped += 1
-                elif len(hc_ids) > 1:
-                    ambiguous += 1  # conflicting mappings: leave NULL, title+author matching still works
-                    print(f"skip Goodreads {gid}: maps to several Hardcover books {sorted(hc_ids)}")
-                else:
-                    mapped += 1
-                    if args.apply:
-                        cur.execute(
-                            "UPDATE bookshelf SET hardcover_book_id = %s WHERE book_id = %s AND hardcover_book_id IS NULL",
-                            (next(iter(hc_ids)), gid))
-                        updated_rows += cur.rowcount
-        conn.commit()
-        print(f"batch {start}-{start + len(batch)} done (mapped={mapped} ambiguous={ambiguous} unmapped={unmapped})")
+        pairs = []
+        for gid in batch:
+            hc_ids = mappings.get(str(gid), set())
+            if not hc_ids:
+                unmapped += 1
+            elif len(hc_ids) > 1:
+                ambiguous += 1  # conflicting mappings: leave NULL, title+author matching still works
+                print(f"skip Goodreads {gid}: maps to several Hardcover books {sorted(hc_ids)}")
+            else:
+                mapped += 1
+                pairs.append((gid, next(iter(hc_ids))))
+        if args.apply and pairs:
+            updated_rows += write_batch(pairs)
+        print(f"batch {start}-{start + len(batch)} done (mapped={mapped} ambiguous={ambiguous} unmapped={unmapped})", flush=True)
         time.sleep(args.pause)
 
     print(f"finished: mapped={mapped} ambiguous={ambiguous} unmapped={unmapped} rows_updated={updated_rows}")
