@@ -53,3 +53,53 @@ def test_null_spine_book_id_does_not_match_a_book_without_goodreads_id():
     spine = _spine("h", "Unrelated", "Z", hardcover_book_id=1)
     found, unfound = which_books_found(_db(spine), [{"hardcover_book_id": 2, "title": "Dune", "author": "A"}])
     assert found == [] and len(unfound) == 1
+
+
+# ---- title/author normalization for the fallback match -------------------------------------------
+
+def test_hardcover_plain_title_matches_goodreads_title_with_series_suffix():
+    spine = _spine("s", "Words of Radiance (The Stormlight Archive, #2)", "Brandon Sanderson", book_id=17332218)
+    book = {"hardcover_book_id": 374131, "title": "Words of Radiance", "author": "Brandon Sanderson"}
+    found, unfound = which_books_found(_db(spine), [book])
+    assert unfound == [] and found[0][0]["upload_id"] == "s"
+
+
+def test_goodreads_title_with_suffix_matches_a_spine_stored_without_it():
+    spine = _spine("s", "Red Country", "Joe Abercrombie", hardcover_book_id=297006)
+    book = {"book_id": "999", "title": "Red Country (Standalone, #6)", "author": "Joe Abercrombie"}
+    found, unfound = which_books_found(_db(spine), [book])
+    assert unfound == [] and found[0][0]["upload_id"] == "s"
+
+
+def test_curly_quotes_and_repeated_spaces_still_match():
+    spine = _spine("s", "The Book That Wouldn't Burn", "Mark Lawrence", book_id=1)
+    book = {"hardcover_book_id": 684408, "title": "The Book That Wouldn’t Burn", "author": "Mark  Lawrence"}
+    found, unfound = which_books_found(_db(spine), [book])
+    assert unfound == [] and found[0][0]["upload_id"] == "s"
+
+
+def test_different_books_by_the_same_author_do_not_match():
+    spine = _spine("s", "Dune Messiah (Dune Chronicles, #2)", "Frank Herbert", book_id=1)
+    book = {"hardcover_book_id": 312460, "title": "Dune", "author": "Frank Herbert"}
+    found, unfound = which_books_found(_db(spine), [book])
+    assert found == [] and unfound == [book]
+
+
+def test_same_title_by_a_different_author_does_not_match():
+    spine = _spine("s", "The Hunter", "Richard Stark", book_id=1)
+    book = {"hardcover_book_id": 5, "title": "The Hunter", "author": "Someone Else"}
+    found, unfound = which_books_found(_db(spine), [book])
+    assert found == [] and unfound == [book]
+
+
+def test_nothing_that_matched_before_stops_matching():
+    # old rule: LOWER(TRIM(title)) and LOWER(TRIM(author)) equal. The new rule must find a superset.
+    pairs = [("Dune", "Frank Herbert"), ("  dune ", "FRANK HERBERT"), ("Solaris", "Stanisław Lem"),
+             ("Foundation (Foundation, #1)", "Isaac Asimov"), ("A  Title", "An Author")]
+    for title, author in pairs:
+        spine = _spine("s", title, author, book_id=1)
+        old_key = (title.lower().strip(), author.lower().strip())
+        book = {"hardcover_book_id": 2, "title": title.upper(), "author": author.upper()}
+        assert (title.lower().strip(), author.lower().strip()) == old_key
+        found, unfound = which_books_found(_db(spine), [book])
+        assert unfound == [] and len(found) == 1, (title, author)

@@ -4,6 +4,8 @@ import time
 import uuid
 from contextlib import contextmanager, suppress
 
+from bookshelf.text_match import match_key
+
 
 class CockroachDAO:
     def __init__(self, db_url):
@@ -411,32 +413,51 @@ class CockroachDAO:
         return [self.format_book_tuple(r) for r in res]
 
     def get_spines_batch_by_title_author(self, book_list):
+        """Spines that could belong to any of these books: the same title and author (compared with
+        text_match, so series suffixes, quote style and spacing don't matter), or the same Goodreads or
+        Hardcover id. Equal matches come back oldest upload first, so a shelf opens with the same edition
+        every time.
+
+        The title/author comparison is done in Python (one narrow scan of title and author, then a lookup
+        by primary key) rather than in SQL, so there is a single definition of "same book" and no
+        Postgres/CockroachDB regex differences. Grows linearly with the spine table; revisit with a
+        stored key column if the table gets into the tens of thousands."""
         if not book_list or len(book_list) == 0:
             return []
 
-        title_author_conditions = []
-        params = []
+        wanted = set()
         book_ids = []
         hardcover_ids = []
         for book in book_list:
-            title_author_conditions.append("(LOWER(TRIM(title)) = LOWER(TRIM(%s)) AND LOWER(TRIM(author)) = LOWER(TRIM(%s)))")
-            params.append(book["title"])
-            params.append(book["author"])
+            # A missing (None) title or author never matched in SQL (NULL = anything is not true); keep that.
+            if book.get("title") is not None and book.get("author") is not None:
+                wanted.add(match_key(book["title"], book["author"]))
             if book.get("book_id"):
                 book_ids.append(book["book_id"])
             if book.get("hardcover_book_id") is not None:
                 hardcover_ids.append(book["hardcover_book_id"])
 
-        sql = "SELECT * FROM bookshelf WHERE " + " OR ".join(title_author_conditions)
+        conditions = []
+        params = []
+        if wanted:
+            rows = self.exec_statement_fetch("SELECT upload_id, title, author FROM bookshelf") or []
+            upload_ids = [str(r[0]) for r in rows
+                          if r[1] is not None and r[2] is not None and match_key(r[1], r[2]) in wanted]
+            if upload_ids:
+                conditions.append("upload_id IN (" + ", ".join(["%s"] * len(upload_ids)) + ")")
+                params.extend(upload_ids)
         if book_ids:
-            placeholders = ", ".join(["%s"] * len(book_ids))
-            sql += f" OR book_id IN ({placeholders})"
+            conditions.append("book_id IN (" + ", ".join(["%s"] * len(book_ids)) + ")")
             params.extend(book_ids)
         if hardcover_ids:
-            placeholders = ", ".join(["%s"] * len(hardcover_ids))
-            sql += f" OR hardcover_book_id IN ({placeholders})"
+            conditions.append("hardcover_book_id IN (" + ", ".join(["%s"] * len(hardcover_ids)) + ")")
             params.extend(hardcover_ids)
+        if not conditions:
+            return []
 
+        # NULLS LAST is spelled out because Postgres and CockroachDB disagree on where NULLs sort by default.
+        sql = ("SELECT * FROM bookshelf WHERE " + " OR ".join(conditions)
+               + " ORDER BY timestamp ASC NULLS LAST, upload_id ASC")
         res = self.exec_statement_fetch(sql, tuple(params))
         if not res:
             return []

@@ -3,6 +3,7 @@ from PIL import Image, ImageDraw, ImageFont
 from bookshelf.image_opener.pil_image_opener import PILImageOpener
 from bookshelf.image_opener.s3_image_opener import S3ImageOpener
 from bookshelf.rand_col import getRandColor
+from bookshelf.text_match import match_key
 from random import random, choice
 import copy
 import math
@@ -226,7 +227,7 @@ def which_books_found(db, bookList):
     book_id_lookup = {}
     hardcover_lookup = {}
     for spine in all_spines:
-        key = (spine["title"].lower().strip() if spine["title"] else "", spine["author"].lower().strip() if spine["author"] else "")
+        key = match_key(spine["title"], spine["author"])
         if key not in spine_lookup:
             spine_lookup[key] = []
         spine_lookup[key].append(spine)
@@ -239,7 +240,7 @@ def which_books_found(db, bookList):
     found = []
 
     for b in bookList:
-        key = (b["title"].lower().strip() if b["title"] else "", b["author"].lower().strip() if b["author"] else "")
+        key = match_key(b["title"], b["author"])
         hardcover_id = b.get("hardcover_book_id")
         title_spines = spine_lookup.get(key, []) or book_id_lookup.get(str(b.get("book_id", "")), [])
         spines = title_spines
