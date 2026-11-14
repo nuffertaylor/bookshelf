@@ -45,3 +45,5 @@ src/six*
 src/urllib3/
 src/werkzeug/
 src/xmltodict*
+# Local environment (copy from .env.example)
+.env

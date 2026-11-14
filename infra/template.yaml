@@ -4,7 +4,7 @@ Description: Bookshelf Lambda functions
 
 Parameters:
   # Prepended to every function name and the layer name. Leave empty for the production stack
-  # (names must match the live functions); use e.g. "test-" for a separate test stack.
+  # (names must match the live functions); use "v2-" while the old manually deployed functions still exist.
   Prefix:
     Type: String
     Default: ""
@@ -73,8 +73,8 @@ Globals:
       - !Ref BookshelfLayer
 
 Resources:
-  # Applied to every function (via Globals): S3 access to the spines bucket (the bucket name is
-  # hardcoded in s3_dao.py) and read access to the DB SSL cert secret.
+  # Applied to every function: S3 access to the spines bucket (the bucket name is hardcoded in
+  # s3_dao.py) and read access to the DB SSL cert secret.
   SharedAccessPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:

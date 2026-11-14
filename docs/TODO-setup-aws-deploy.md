@@ -7,7 +7,7 @@ Status: nothing is deployed from this repo yet. All production lambdas are curre
 `make deploy` runs:
 ```
 sam build --use-container --template infra/template.yaml
-sam deploy --parameter-overrides DatabaseUrl={{resolve:ssm:/bookshelf/database_url}} CertSecretArn={{resolve:ssm:/bookshelf/cert_secret_arn}} SkipSslCert=""
+sam deploy --parameter-overrides DatabaseUrl={{resolve:ssm:/bookshelf/database_url}} CertSecretArn={{resolve:ssm:/bookshelf/cert_secret_arn}} SkipSslCert=false
 ```
 - `sam deploy` has no `--stack-name`, `--s3-bucket` or `--capabilities`, and there is no `samconfig.toml`.
 - The SSM parameters don't exist yet.
