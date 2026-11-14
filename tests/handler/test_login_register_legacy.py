@@ -52,3 +52,29 @@ def test_banned_user_cannot_password_login():
 def test_non_string_credentials_do_not_500():
     h = load("login_register")
     assert call(h, _db(), {"requestType": "login", "username": "alice", "password": 123})[0] == 403
+
+
+def test_password_login_reports_an_existing_hardcover_link():
+    from bookshelf import token_crypto
+    db = _db()
+    db.upsert_hardcover_connection("alice", 7, "alice_hc", token_crypto.encrypt("alice", "at"),
+                                   token_crypto.encrypt("alice", "rt"), 0, "s")
+    status, body = call(load("login_register"), db, {"requestType": "login", "username": "alice", "password": "correct"})
+    assert status == 200
+    assert body["hardcover_username"] == "alice_hc"
+    assert body["hardcover_needs_reauth"] is False
+
+
+def test_password_login_flags_a_link_that_needs_reconnecting():
+    from bookshelf import token_crypto
+    db = _db()
+    db.upsert_hardcover_connection("alice", 7, "alice_hc", token_crypto.encrypt("alice", "at"),
+                                   token_crypto.encrypt("alice", "rt"), 0, "s")
+    db.connections["alice"]["needs_reauth"] = True
+    _, body = call(load("login_register"), db, {"requestType": "login", "username": "alice", "password": "correct"})
+    assert body["hardcover_username"] == "alice_hc" and body["hardcover_needs_reauth"] is True
+
+
+def test_password_login_with_no_hardcover_link_reports_none():
+    status, body = call(load("login_register"), _db(), {"requestType": "login", "username": "alice", "password": "correct"})
+    assert status == 200 and body["hardcover_username"] is None and body["hardcover_needs_reauth"] is False

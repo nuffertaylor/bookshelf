@@ -49,5 +49,13 @@ def _handle_login(db, username, password):
         return http_result(403, "This account is not permitted to sign in.")
     session = mint_session(db, username)
     if session:
-        return http_result(200, {"username": session["username"], "authtoken": session["authtoken"], "goodreads_id": session["goodreads_id"]})
+        connection = db.get_hardcover_connection(username)
+        return http_result(200, {
+            "username": session["username"],
+            "authtoken": session["authtoken"],
+            "goodreads_id": session["goodreads_id"],
+            # Whether Hardcover is already linked, so the frontend doesn't ask the user to link it again.
+            "hardcover_username": connection["hardcover_username"] if connection else None,
+            "hardcover_needs_reauth": bool(connection and connection["needs_reauth"]),
+        })
     return http_result(400, "something went wrong, please try again later.")

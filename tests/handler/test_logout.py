@@ -28,24 +28,20 @@ def test_logout_requires_a_valid_session(setup):
     assert db.validate_username_authtoken("alice", "tok")
 
 
-def test_logout_revokes_the_hardcover_refresh_token(setup):
+def test_logout_keeps_the_hardcover_link_so_users_never_have_to_relink(setup):
     db, fake = setup
     db.upsert_hardcover_connection("alice", 1, "a", token_crypto.encrypt("alice", "at"),
                                    token_crypto.encrypt("alice", "hc_rt_live"), 0, "s")
     assert call(load("logout"), db, {"username": "alice", "authtoken": "tok"})[0] == 200
-    calls = fake.calls_to("/oauth2/revoke")
-    assert len(calls) == 1 and b"hc_rt_live" in calls[0]["data"]
-    assert db.connections["alice"]["needs_reauth"] is True
+    assert fake.calls_to("/oauth2/revoke") == []          # tokens are not revoked at Hardcover
+    conn = db.connections["alice"]
+    assert conn["needs_reauth"] is False                   # and the connection is still usable
+    assert token_crypto.decrypt("alice", conn["refresh_token_enc"]) == "hc_rt_live"
+    assert not db.validate_username_authtoken("alice", "tok")
 
 
-def test_revoke_failure_does_not_fail_logout(setup, monkeypatch):
-    db, _ = setup
-    db.upsert_hardcover_connection("alice", 1, "a", token_crypto.encrypt("alice", "at"),
-                                   token_crypto.encrypt("alice", "rt"), 0, "s")
-
-    def boom(*a, **k):
-        raise hc.HardcoverError("down")
-
-    monkeypatch.setattr(hc, "_request", boom)
+def test_logout_works_for_an_account_that_never_linked_hardcover(setup):
+    db, fake = setup
     assert call(load("logout"), db, {"username": "alice", "authtoken": "tok"})[0] == 200
+    assert fake.calls_to("/oauth2/revoke") == []
     assert not db.validate_username_authtoken("alice", "tok")

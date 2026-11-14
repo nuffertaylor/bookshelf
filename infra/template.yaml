@@ -433,13 +433,8 @@ Resources:
       FunctionName: !Sub "${Prefix}logout"
       CodeUri: ../lambdas/logout/
       Handler: handler.lambda_handler
-      Environment:
-        Variables:
-          HARDCOVER_SECRET_ARN: !Ref HardcoverSecretArn
-          HARDCOVER_CLIENT_SECRET: !Ref HardcoverClientSecret
       Policies:
         - !Ref SharedAccessPolicy
-        - !Ref HardcoverAccessPolicy
       Events:
         Api:
           Type: Api
