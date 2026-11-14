@@ -136,9 +136,42 @@ REACT_APP_API_URL=<ApiUrl>
 
 Requests carry session tokens. Confirm the `Prod` stage has no full request/response body logging (API Gateway console, stage, Logs/Tracing).
 
+## Automatic deploys from GitHub (push to `master`)
+
+The `deploy` job in `.github/workflows/ci.yml` runs `make deploy` after the tests pass on every push to `master`. It updates the same `bookshelf` stack as above, and does nothing if nothing changed. It signs in to AWS by assuming a role through OIDC, so there are no AWS keys stored in GitHub. The role can only be assumed by runs on the `master` branch of `nuffertaylor/bookshelf`.
+
+Do the first manual deploy (steps 1 to 7) before enabling this: the job updates an existing stack and reads the `/bookshelf/...` SSM parameters you created in step 2. One-time setup:
+
+**a. Create the role.** From the repo root in PowerShell:
+
+```powershell
+aws cloudformation deploy `
+  --template-file infra\github-deploy-role.yaml `
+  --stack-name bookshelf-github-deploy `
+  --capabilities CAPABILITY_NAMED_IAM `
+  --region us-east-1
+```
+
+If this fails with "Provider with url https://token.actions.githubusercontent.com already exists", your account already has the GitHub OIDC provider. Find its ARN with `aws iam list-open-id-connect-providers`, then re-run the command above with `--parameter-overrides ExistingOidcProviderArn=<that arn>` added.
+
+**b. Read the role ARN:**
+
+```powershell
+aws cloudformation describe-stacks --stack-name bookshelf-github-deploy --query "Stacks[0].Outputs" --output table
+```
+
+**c. Add it to GitHub.** In the repo on github.com: Settings, then Secrets and variables, then Actions, then New repository secret. Name it `AWS_DEPLOY_ROLE_ARN` and paste the ARN.
+
+**d. Try it.** Merge to `master` (or push a small change), then watch the Actions tab. The `deploy` job takes a few minutes because it builds in Docker. If it fails, the log shows the CloudFormation or permission error; the role's permissions are in `infra/github-deploy-role.yaml` and are easy to extend.
+
+Notes:
+- `make deploy` also works locally (Mac or CI) if your shell has AWS credentials, for example `AWS_PROFILE=... make deploy`.
+- The deploy always uses prefix `v2-`. When you later drop the old functions and the prefix, change `Prefix` in the `Makefile`.
+- If the role template's stack name or the repo moves, change the `GitHubRepo` / `StackName` parameters.
+- Deploys only run on pushes to `master`, not on pull requests or other branches.
+
 ## Rollback and cleanup
 
 - **Rollback:** point `REACT_APP_API_URL` back at `https://vi64h2xk34.execute-api.us-east-1.amazonaws.com/alpha/`.
 - **Retire the old setup** once you're confident: delete the old functions and the old API. Deleting the stack (`aws cloudformation delete-stack --stack-name bookshelf`) removes only the `v2-` resources.
 - **Later renaming:** a stack with an empty `Prefix` collides with the live function names, so drop the prefix only after the old functions are deleted.
-- **CI:** the `deploy` job in `.github/workflows/ci.yml` still runs `make deploy` on `master` without AWS secrets and will fail. Remove or guard it before merging.
