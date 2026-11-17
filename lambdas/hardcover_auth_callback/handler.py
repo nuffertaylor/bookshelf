@@ -135,6 +135,7 @@ def _handle_link(db, username, hardcover_id, hardcover_username, tokens, now):
         return http_result(400, {"error": "The account to link no longer exists."})
     if user.get("banned"):
         return http_result(403, {"error": "This account is not permitted to link Hardcover."})
+    # TODO: Let users merge accounts. A legacy user who signed in with Hardcover first has two accounts, and this 409 leaves them stuck (re-point submitter/owner rows to one account). Also add a note on the frontend.
     owner = db.get_user_by_hardcover_id(hardcover_id)
     if owner and owner["username"] != username:
         return http_result(409, {"error": "hardcover_already_linked"})
