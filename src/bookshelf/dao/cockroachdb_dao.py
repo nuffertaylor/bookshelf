@@ -1,4 +1,5 @@
 import os
+import re
 import psycopg2
 import time
 import uuid
@@ -380,6 +381,21 @@ class CockroachDAO:
         if res and len(res) > 0:
             return self.format_book_tuple(res[0])
         return False
+
+    def get_uploaded_hardcover_ids(self, username, ids):
+        """Subset of `ids` (Hardcover book ids) that `username` has uploaded. One query."""
+        clean = set()
+        for i in ids or []:
+            t = str(i).strip()
+            if not isinstance(i, bool) and len(t) <= 19 and re.fullmatch(r"[0-9]+", t) and int(t) <= 2**63 - 1:
+                clean.add(int(t))
+        clean = sorted(clean)
+        if not clean:
+            return []
+        placeholders = ", ".join(["%s"] * len(clean))
+        sql = "SELECT hardcover_book_id FROM bookshelf WHERE submitter = %s AND hardcover_book_id IN (" + placeholders + ")"
+        res = self.exec_statement_fetch(sql, (username, *clean))
+        return [row[0] for row in res] if res else []
 
     def has_user_saved_unfound(self, username, book_id=None, hardcover_book_id=None):
         clause, params = self._id_match_clause(self._id_or_none(book_id), self._id_or_none(hardcover_book_id))

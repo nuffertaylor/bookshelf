@@ -214,23 +214,6 @@ Resources:
             Path: /importgrlibrary
             Method: post
 
-  GetGRBookDetailsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${Prefix}getGRBookDetails"
-      CodeUri: ../lambdas/get_gr_book_details/
-      Handler: index.handler
-      Policies:
-        - !Ref SharedAccessPolicy
-      Runtime: nodejs22.x
-      Layers: []
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /getgrbookdetails
-            Method: get
-
   SetGoodreadsIdFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -483,6 +466,27 @@ Resources:
           Type: Api
           Properties:
             Path: /hardcover/shelf
+            Method: post
+
+  HardcoverSearchBooksFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Prefix}hardcoverSearchBooks"
+      CodeUri: ../lambdas/hardcover_search_books/
+      Handler: handler.lambda_handler
+      Timeout: 60
+      Environment:
+        Variables:
+          HARDCOVER_SECRET_ARN: !Ref HardcoverSecretArn
+          HARDCOVER_CLIENT_SECRET: !Ref HardcoverClientSecret
+      Policies:
+        - !Ref SharedAccessPolicy
+        - !Ref HardcoverAccessPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /hardcover/search
             Method: post
 
 Outputs:

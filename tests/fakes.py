@@ -118,6 +118,11 @@ class FakeDB:
         return {"code_verifier": s["code_verifier"], "mode": s["mode"], "username": s["username"]}
 
     # spines
+    def get_uploaded_hardcover_ids(self, username, ids):
+        ids = set(ids)
+        return [s["hardcover_book_id"] for s in self.spines
+                if s.get("submitter") == username and s.get("hardcover_book_id") in ids]
+
     def get_spines_batch_by_title_author(self, book_list):
         return self.spines
 

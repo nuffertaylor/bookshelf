@@ -129,3 +129,35 @@ def test_transaction_commits_once_and_rolls_back_on_error(dao):
         raise ValueError("boom")
     dao.conn.rollback.assert_called_once()
     dao.conn.commit.assert_not_called()
+
+
+def test_get_uploaded_hardcover_ids_single_query_scoped_to_user(dao):
+    dao.exec_statement_fetch.return_value = [(5,), (9,)]
+    assert dao.get_uploaded_hardcover_ids("u", [9, 5, 5, "7"]) == [5, 9]
+    assert dao.exec_statement_fetch.call_count == 1
+    sql, params = _sql(dao.exec_statement_fetch)
+    assert "submitter = %s" in sql and "hardcover_book_id IN (%s, %s, %s)" in sql
+    assert params == ("u", 5, 7, 9)
+
+
+def test_get_uploaded_hardcover_ids_empty_list_skips_query(dao):
+    assert dao.get_uploaded_hardcover_ids("u", []) == []
+    dao.exec_statement_fetch.assert_not_called()
+
+
+def test_get_uploaded_hardcover_ids_no_rows(dao):
+    dao.exec_statement_fetch.return_value = False
+    assert dao.get_uploaded_hardcover_ids("u", [1]) == []
+
+
+def test_get_uploaded_hardcover_ids_ignores_unsafe_values(dao):
+    dao.exec_statement_fetch.return_value = [(3,)]
+    bad = ["1_0", "+5", "-5", "5.0", "\u0663", "9223372036854775808", "9" * 30, True, None, 2.5, "", "x"]
+    dao.get_uploaded_hardcover_ids("u", bad + [3, "9223372036854775807"])
+    _, params = _sql(dao.exec_statement_fetch)
+    assert params == ("u", 3, 2**63 - 1)
+
+
+def test_get_uploaded_hardcover_ids_all_unsafe_skips_query(dao):
+    assert dao.get_uploaded_hardcover_ids("u", ["1_0", "+5", "\u0663", 10**30]) == []
+    dao.exec_statement_fetch.assert_not_called()

@@ -26,7 +26,7 @@ sam deploy --parameter-overrides DatabaseUrl={{resolve:ssm:/bookshelf/database_u
 - [ ] **Plan the API URL.** SAM creates a new API Gateway (stage `Prod`, new ID). The old frontend uses `https://vi64h2xk34.execute-api.us-east-1.amazonaws.com/alpha/`. Either point the frontend's `REACT_APP_API_URL` at the new API (see `.env.production.example` in `bookshelf-ts-site`) or map a custom domain.
 - [ ] **Confirm the S3 bucket.** The template doesn't appear to define `bookshelf-spines`. Check how the lambdas reference it before deploying.
 - [ ] **Fix `make deploy` for non-Colima machines.** Drop or condition the `DOCKER_HOST` line (Windows, Linux CI).
-- [ ] **Update `nodejs20.x`** for `GetGRBookDetailsFunction` (deprecated runtime; blocks creates and updates later).
+- [x] ~~Update `nodejs20.x` for `GetGRBookDetailsFunction`~~: no longer applies. The function is deprecated and removed from the template (see `lambdas/get_gr_book_details/DEPRECATED.md`). If it exists outside the stack, delete it by hand after the frontend stops calling `/getgrbookdetails`.
 - [ ] **CI.** Add AWS secrets and keep the `deploy` job, or remove it and deploy by hand.
 - [ ] **Write `docs/deploy.md`** with the final commands once a test stack works.
 

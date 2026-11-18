@@ -87,3 +87,108 @@ def test_429_propagates(monkeypatch):
     monkeypatch.setattr(hc, "_request", fake)
     with pytest.raises(hc.HardcoverRateLimited):
         lib.get_shelf_books(_linked_db(3600), "alice", "status:3")
+
+
+# ---- search_books (contribute flow) ----------------------------------------------------------
+
+def _hit(id="123", **over):
+    doc = {"id": id, "title": "Project Hail Mary", "subtitle": "A Novel", "author_names": ["Andy Weir"],
+           "contributions": [{"contribution": "Author", "author": {"name": "Andy Weir"}}],
+           "release_year": 2021, "isbns": ["0593135202", "9780593135204"]}
+    doc.update(over)
+    return {"document": doc}
+
+
+def _search_db(monkeypatch, results, status=200):
+    fake = FakeHardcover()
+    fake.graphql = [(status, {"data": {"search": {"results": results}}})]
+    monkeypatch.setattr(hc, "_request", fake)
+    db = _linked_db(3600)
+    db.connections["alice"]["scopes"] = "read:library read:catalog"
+    return db, fake
+
+
+def test_search_normalizes_hit(monkeypatch):
+    db, fake = _search_db(monkeypatch, {"hits": [_hit()], "found": 1})
+    db.spines = [{"submitter": "alice", "hardcover_book_id": 123}]
+    assert lib.search_books(db, "alice", "  project hail mary ") == [{
+        "hardcover_book_id": 123, "title": "Project Hail Mary", "subtitle": "A Novel", "author": "Andy Weir",
+        "pubDate": "2021", "isbn": "0593135202", "isbn13": "9780593135204", "already_uploaded": True}]
+    import json
+    sent = json.loads(fake.calls_to("/v1/graphql")[0]["data"])
+    assert sent["variables"] == {"q": "project hail mary", "n": 10}
+
+
+def test_search_results_as_json_string(monkeypatch):
+    import json
+    db, _ = _search_db(monkeypatch, json.dumps({"hits": [_hit()]}))
+    assert [r["hardcover_book_id"] for r in lib.search_books(db, "alice", "hail mary")] == [123]
+
+
+def test_search_isbn10_only_converts_and_x_check_digit(monkeypatch):
+    db, _ = _search_db(monkeypatch, {"hits": [_hit(isbns=["0593135202"]), _hit(id="2", isbns=["043942089X"]), _hit(id="3", isbns=None)]})
+    r = lib.search_books(db, "alice", "hail mary")
+    assert (r[0]["isbn"], r[0]["isbn13"]) == ("0593135202", "9780593135204")
+    assert r[1]["isbn"] == "043942089X" and r[1]["isbn13"] == ""  # X check digit: no conversion
+    assert (r[2]["isbn"], r[2]["isbn13"]) == ("", "")
+
+
+def test_search_author_fallback_missing_subtitle_and_year(monkeypatch):
+    db, _ = _search_db(monkeypatch, {"hits": [
+        _hit(contributions=None), _hit(id="2", contributions=None, author_names=None, subtitle=None, release_year=None)]})
+    r = lib.search_books(db, "alice", "hail mary")
+    assert r[0]["author"] == "Andy Weir"
+    assert r[1]["author"] == "" and r[1]["subtitle"] == "" and r[1]["pubDate"] == ""
+
+
+def test_search_skips_non_integer_ids(monkeypatch):
+    db, _ = _search_db(monkeypatch, {"hits": [_hit(id="abc"), _hit(id=None), _hit(id="7"), "junk", {}]})
+    assert [r["hardcover_book_id"] for r in lib.search_books(db, "alice", "hail mary")] == [7]
+
+
+@pytest.mark.parametrize("results", [None, {}, {"hits": None}, {"hits": "x"}, [], "not json", 5])
+def test_search_malformed_results_are_empty(monkeypatch, results):
+    db, _ = _search_db(monkeypatch, results)
+    assert lib.search_books(db, "alice", "hail mary") == []
+
+
+@pytest.mark.parametrize("query", [None, 5, "", "ab", "  a ", "x" * 201])
+def test_search_query_validation(monkeypatch, query):
+    db, fake = _search_db(monkeypatch, {"hits": []})
+    with pytest.raises(ValueError):
+        lib.search_books(db, "alice", query)
+    assert fake.calls == []
+
+
+def test_search_query_length_bounds_ok(monkeypatch):
+    db, _ = _search_db(monkeypatch, {"hits": []})
+    assert lib.search_books(db, "alice", "abc") == []
+    assert lib.search_books(db, "alice", "x" * 200) == []
+
+
+@pytest.mark.parametrize("bad", ["1_0", "+5", "-5", "5.0", " ", "\u0663\u0664", "\uff11\uff12", "9223372036854775808",
+                                 "1" * 40, True, 1.5, [], {}])
+def test_search_skips_unsafe_ids(monkeypatch, bad):
+    db, _ = _search_db(monkeypatch, {"hits": [_hit(id=bad), _hit(id="8")]})
+    assert [r["hardcover_book_id"] for r in lib.search_books(db, "alice", "hail mary")] == [8]
+
+
+def test_search_accepts_int_id_and_max_int64(monkeypatch):
+    db, _ = _search_db(monkeypatch, {"hits": [_hit(id=5), _hit(id="9223372036854775807")]})
+    assert [r["hardcover_book_id"] for r in lib.search_books(db, "alice", "hail mary")] == [5, 2**63 - 1]
+
+
+@pytest.mark.parametrize("year,expected", [
+    (1965, "1965"), (1965.0, "1965"), ("1965", "1965"), ("1965.0", "1965"), (" 1965 ", "1965"),
+    (1965.5, ""), ("abc", ""), ("", ""), (None, ""), (0, ""), (True, ""), ([], ""), (float("nan"), ""),
+    (float("inf"), ""), ("19650", ""), (-5, "")])
+def test_search_pubdate_normalization(monkeypatch, year, expected):
+    db, _ = _search_db(monkeypatch, {"hits": [_hit(release_year=year)]})
+    assert lib.search_books(db, "alice", "hail mary")[0]["pubDate"] == expected
+
+
+def test_search_title_subtitle_only_strings(monkeypatch):
+    db, _ = _search_db(monkeypatch, {"hits": [
+        _hit(title=42, subtitle={"a": 1}), _hit(id="2", title=None, subtitle=3.5), _hit(id="3", title="T", subtitle="S")]})
+    r = lib.search_books(db, "alice", "hail mary")
+    assert [(x["title"], x["subtitle"]) for x in r] == [("", ""), ("", ""), ("T", "S")]

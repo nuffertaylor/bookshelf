@@ -1,4 +1,8 @@
 """Hardcover library -> shelves and the {found, unfound} book shape. Nothing is cached or stored."""
+import json
+import math
+import re
+
 from bookshelf.bookshelf import convertISBNtoISBN13
 from bookshelf.hardcover_client import first_me, user_graphql
 
@@ -143,3 +147,124 @@ def get_shelf_books(db, username, shelf):
             break
         offset += PAGE_SIZE
     return books
+
+
+# ---- catalog search (contribute flow) ----------------------------------------------------------
+
+SEARCH_MIN_LEN = 3
+SEARCH_MAX_LEN = 200
+SEARCH_PER_PAGE = 10
+
+# Typesense defaults are used (no fields/weights). TODO(live): ranking tuning needs a real token;
+# try fields/weights (e.g. higher author_names weight) on "project hail mary", "hail mary andy weir"
+# and compare. Not done yet (plan section 5, open item on ranking).
+SEARCH_QUERY = (
+    "query ($q: String!, $n: Int!) { search(query: $q, query_type: \"Book\", per_page: $n, page: 1) { results } }"
+)
+
+
+def _isbn_kind(value):
+    v = str(value or "").strip().replace("-", "").upper()
+    if len(v) == 13 and v.isdigit():
+        return 13, v
+    if len(v) == 10 and v[:9].isdigit() and (v[9].isdigit() or v[9] == "X"):
+        return 10, v
+    return None, None
+
+
+def _pick_isbns(isbns):
+    isbn10 = isbn13 = ""
+    for raw in isbns if isinstance(isbns, list) else []:
+        kind, v = _isbn_kind(raw)
+        if kind == 10 and not isbn10:
+            isbn10 = v
+        elif kind == 13 and not isbn13:
+            isbn13 = v
+    if isbn10 and not isbn13:
+        isbn13 = convertISBNtoISBN13(isbn10) or ""
+    return isbn10, isbn13
+
+
+def _hits(data):
+    search = data.get("search") if isinstance(data, dict) else None
+    results = search.get("results") if isinstance(search, dict) else None
+    if isinstance(results, str):
+        try:
+            results = json.loads(results)
+        except ValueError:
+            return []
+    hits = results.get("hits") if isinstance(results, dict) else None
+    return hits if isinstance(hits, list) else []
+
+
+MAX_ID = 2**63 - 1  # fits a signed 64-bit column
+
+
+def _parse_id(value):
+    """Strict ASCII-digit id that fits a signed 64-bit int, else None."""
+    if isinstance(value, bool):
+        return None
+    s = str(value).strip()
+    if len(s) > 19 or not re.fullmatch(r"[0-9]+", s):
+        return None
+    n = int(s)
+    return n if n <= MAX_ID else None
+
+
+def _year_str(year):
+    """release_year as a clean year string ("1965"), or "" when absent/non-numeric."""
+    if isinstance(year, bool):
+        return ""
+    if isinstance(year, float):
+        year = int(year) if math.isfinite(year) and year.is_integer() else None
+    elif isinstance(year, str):
+        m = re.fullmatch(r"([0-9]{1,4})(?:\.0+)?", year.strip())
+        year = int(m.group(1)) if m else None
+    elif not isinstance(year, int):
+        year = None
+    return str(year) if year and 0 < year <= 9999 else ""
+
+
+def _text(value):
+    return value if isinstance(value, str) else ""
+
+
+def _normalize_hit(hit):
+    doc = hit.get("document") if isinstance(hit, dict) else None
+    if not isinstance(doc, dict):
+        return None
+    book_id = _parse_id(doc.get("id"))
+    if book_id is None:
+        return None
+    author = author_name(doc)
+    if not author:
+        names = doc.get("author_names")
+        author = names[0] if isinstance(names, list) and names and isinstance(names[0], str) else ""
+    isbn, isbn13 = _pick_isbns(doc.get("isbns"))
+    return {
+        "hardcover_book_id": book_id,
+        "title": _text(doc.get("title")),
+        "subtitle": _text(doc.get("subtitle")),
+        "author": author,
+        "pubDate": _year_str(doc.get("release_year")),
+        "isbn": isbn,
+        "isbn13": isbn13,
+        "already_uploaded": False,
+    }
+
+
+def search_books(db, username, query):
+    """Search Hardcover's public catalog as `username`. Raises ValueError for a bad query.
+    Results are neither logged nor stored."""
+    if not isinstance(query, str):
+        raise ValueError("query must be a string")
+    query = query.strip()
+    if not SEARCH_MIN_LEN <= len(query) <= SEARCH_MAX_LEN:
+        raise ValueError(f"query must be {SEARCH_MIN_LEN} to {SEARCH_MAX_LEN} characters")
+    data = user_graphql(db, username, SEARCH_QUERY, {"q": query, "n": SEARCH_PER_PAGE}, required_scope="read:catalog")
+    results = [r for r in (_normalize_hit(h) for h in _hits(data)) if r]
+    if results:
+        uploaded = set(db.get_uploaded_hardcover_ids(username, [r["hardcover_book_id"] for r in results]))
+        for r in results:
+            r["already_uploaded"] = r["hardcover_book_id"] in uploaded
+    return results

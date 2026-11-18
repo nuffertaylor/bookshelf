@@ -31,7 +31,7 @@ def test_authorize_url():
     assert q["state"] == "st" and q["code_challenge"] == "chal"
     assert q["client_id"] == "test-client-id"
     assert q["redirect_uri"] == "http://localhost:3000/oauth/callback"
-    assert q["scope"] == "read:me:email read:library read:lists openid"
+    assert q["scope"] == "read:me:email read:library read:lists read:catalog openid"
 
 
 def test_discovery_falls_back_and_rejects_foreign_hosts(monkeypatch):
@@ -204,3 +204,60 @@ def test_user_graphql_401_marks_needs_reauth(monkeypatch):
     with pytest.raises(hc.HardcoverReauthRequired):
         hc.user_graphql(db, "alice", "q", {})
     assert db.connections["alice"]["needs_reauth"] is True
+
+
+# ---- required_scope / insufficient_scope (Phase 3) -------------------------------------------
+
+def test_stale_scope_raises_reauth_without_network_or_marking(monkeypatch):
+    fake = FakeHardcover()
+    monkeypatch.setattr(hc, "_request", fake)
+    db = _linked_db(3600)  # scopes == "read:library"
+    with pytest.raises(hc.HardcoverReauthRequired):
+        hc.user_graphql(db, "alice", "q", {}, required_scope="read:catalog")
+    assert fake.calls == []
+    assert db.reauth_marked == [] and db.connections["alice"]["needs_reauth"] is False
+
+
+def test_insufficient_scope_403_maps_to_reauth_without_marking(monkeypatch):
+    fake = FakeHardcover()
+    fake.graphql = [(403, {"error": "insufficient_scope"})]
+    monkeypatch.setattr(hc, "_request", fake)
+    db = _linked_db(3600)
+    db.connections["alice"]["scopes"] = "read:library read:catalog"
+    with pytest.raises(hc.HardcoverReauthRequired):
+        hc.user_graphql(db, "alice", "q", {}, required_scope="read:catalog")
+    assert db.reauth_marked == [] and db.connections["alice"]["needs_reauth"] is False
+
+
+def test_other_403_is_a_plain_error(monkeypatch):
+    fake = FakeHardcover()
+    fake.graphql = [(403, {"error": "forbidden"})]
+    monkeypatch.setattr(hc, "_request", fake)
+    with pytest.raises(hc.HardcoverError) as e:
+        hc.user_graphql(_linked_db(3600), "alice", "q", {})
+    assert not isinstance(e.value, hc.HardcoverReauthRequired)
+
+
+def test_shelf_loading_still_works_for_stale_scope_connection(monkeypatch):
+    fake = FakeHardcover()
+    fake.graphql = [(200, {"data": {"me": [{"id": 1}]}})]
+    monkeypatch.setattr(hc, "_request", fake)
+    db = _linked_db(3600)  # no read:catalog
+    assert hc.user_graphql(db, "alice", "q", {}) == {"me": [{"id": 1}]}
+    with pytest.raises(hc.HardcoverReauthRequired):
+        hc.user_graphql(db, "alice", "q", {}, required_scope="read:catalog")
+    assert hc.user_graphql(db, "alice", "q", {}) == {"me": [{"id": 1}]}  # still usable
+
+
+def test_insufficient_scope_403_without_required_scope_is_plain_error(monkeypatch):
+    fake = FakeHardcover()
+    fake.graphql = [(403, {"error": "insufficient_scope"})]
+    monkeypatch.setattr(hc, "_request", fake)
+    db = _linked_db(3600)
+    with pytest.raises(hc.HardcoverError) as e:
+        hc.user_graphql(db, "alice", "q", {})
+    assert not isinstance(e.value, (hc.HardcoverReauthRequired, hc.HardcoverInsufficientScope))
+    assert e.value.status == 403
+    assert db.reauth_marked == [] and db.connections["alice"]["needs_reauth"] is False
+    from bookshelf.hardcover_http import error_response
+    assert error_response(e.value)["statusCode"] == 502

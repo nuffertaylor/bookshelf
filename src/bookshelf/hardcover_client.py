@@ -32,8 +32,9 @@ DISCOVERY_URL = ISSUER + "/.well-known/oauth-authorization-server"
 GRAPHQL_URL = ISSUER + "/v1/graphql"
 _ALLOWED_ENDPOINT_PREFIXES = ("https://api.hardcover.app/", "https://hardcover.app/")
 
-# User sign-in scopes (Phase 0 spike, plan section 3b). read:catalog is only for the backfill script.
-USER_SCOPE = "read:me:email read:library read:lists openid"
+# User sign-in scopes. read:catalog is needed for the catalog `search` action (contribute flow).
+# TODO(live): confirm with a real OAuth token that read:catalog is sufficient (plan Phase 1 gate).
+USER_SCOPE = "read:me:email read:library read:lists read:catalog openid"
 
 STATE_TTL_SECONDS = 600
 REFRESH_SKEW_SECONDS = 60
@@ -53,6 +54,10 @@ class HardcoverError(Exception):
 
 class HardcoverUnauthorized(HardcoverError):
     """GraphQL returned 401: token revoked or reset (the API is in beta)."""
+
+
+class HardcoverInsufficientScope(HardcoverError):
+    """GraphQL returned 403 insufficient_scope."""
 
 
 class HardcoverRateLimited(HardcoverError):
@@ -254,6 +259,8 @@ def graphql(query, variables, access_token):
         lowered = {k.lower(): v for k, v in headers.items()}
         raise HardcoverRateLimited("Hardcover rate limit reached", retry_after=lowered.get("retry-after"))
     doc = _json_or_empty(body)
+    if status == 403 and doc.get("error") == "insufficient_scope":
+        raise HardcoverInsufficientScope("Hardcover token lacks a required scope", status=403, error="insufficient_scope")
     if status != 200:
         raise HardcoverError("GraphQL returned HTTP " + str(status), status=status)
     if doc.get("errors"):
@@ -329,12 +336,24 @@ def get_valid_access_token(db, username, now=None):
     return access_token
 
 
-def user_graphql(db, username, query, variables):
+def user_graphql(db, username, query, variables, required_scope=None):
     """Run a GraphQL query as `username`. A 401 marks the connection needs_reauth and raises
-    HardcoverReauthRequired."""
+    HardcoverReauthRequired.
+
+    If `required_scope` is given and the stored connection predates it, or Hardcover answers 403
+    insufficient_scope, raise HardcoverReauthRequired WITHOUT marking needs_reauth: the connection
+    is still valid for other features (shelf loading), the user only has to reconnect."""
+    if required_scope:
+        conn = db.get_hardcover_connection(username)
+        if conn and required_scope not in (conn.get("scopes") or "").split():
+            raise HardcoverReauthRequired("hardcover connection is missing scope " + required_scope)
     token = get_valid_access_token(db, username)
     try:
         return graphql(query, variables, token)
     except HardcoverUnauthorized:
         db.mark_hardcover_needs_reauth(username)
         raise HardcoverReauthRequired("hardcover rejected the access token") from None
+    except HardcoverInsufficientScope as e:
+        if not required_scope:
+            raise HardcoverError(str(e), status=e.status, error=e.error) from None
+        raise HardcoverReauthRequired("hardcover token is missing a required scope") from None
