@@ -4,7 +4,7 @@ from bookshelf import hardcover_client
 from bookshelf.bookshelf import which_books_found
 from bookshelf.dao.cockroachdb_dao import CockroachDAO
 from bookshelf.hardcover_http import error_response
-from bookshelf.hardcover_library import ShelfNotFound, get_shelf_books
+from bookshelf.hardcover_library import LIST_PROBE_FIELDS, ShelfNotFound, get_shelf_books, probe_list_book_ids
 from bookshelf.http import http_result, parse_event
 
 _db = None
@@ -39,6 +39,11 @@ def lambda_handler(event, context):
         return http_result(403, {"error": "invalid or expired session"})
 
     try:
+        if event.get("probe_book_ids") is True:
+            field = event.get("probe_field")
+            if field is not None and (not isinstance(field, str) or field not in LIST_PROBE_FIELDS):
+                return http_result(400, {"error": "invalid probe_field"})
+            return http_result(200, {"book_ids": probe_list_book_ids(db, username, shelf, field)})
         books = get_shelf_books(db, username, shelf)
     except ShelfNotFound:
         return http_result(404, {"error": "shelf not found"})
